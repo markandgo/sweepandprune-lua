@@ -248,11 +248,12 @@ local add = function (self,obj,x0,y0,x1,y1)
 	
 	for x = cell_x0,cell_x1,1 do
 		self.cells[x] = self.cells[x] or setmetatable({},weakValues)
+		local xrow = self.cells[x]
 		for y = cell_y0,cell_y1,1 do
 			self.cells[x][y] = self.cells[x][y] or {sap = sap(self.endrefs,self.actives)}
 			local cell = self.cells[x][y]
 			cell.sap:add(obj,x0,y0,x1,y1)
-			self.objInCells[obj][cell] = cell
+			self.objInCells[obj][cell] = xrow
 		end
 	end
 	
@@ -263,7 +264,7 @@ local delete = function (self,obj)
 	assert(self.endrefs[obj],'invalid object')
 	self.deletebuffer[obj] = obj
 	
-	for _,cell in pairs(self.objInCells[obj]) do
+	for cell,_ in pairs(self.objInCells[obj]) do
 		cell.sap:delete(obj)
 	end
 end
@@ -288,11 +289,11 @@ local move = function (self,obj,x0,y0,x1,y1)
 		for y = cell_y0,cell_y1 do
 			self.cells[x][y] = self.cells[x][y] or {sap = sap(self.endrefs,self.actives)}
 			local cell = self.cells[x][y]
-			listcells[cell] = cell
+			listcells[cell] = self.cells[x]
 		end
 	end
 	
-	for _,cell in pairs(self.objInCells[obj]) do
+	for cell,_ in pairs(self.objInCells[obj]) do
 		if not listcells[cell] then
 			self.objInCells[obj][cell] = nil
 			cell.sap:delete(obj)
@@ -301,8 +302,8 @@ local move = function (self,obj,x0,y0,x1,y1)
 		end
 	end
 	
-	for _,cell in pairs(listcells) do
-		self.objInCells[obj][cell] = cell
+	for cell,xrow in pairs(listcells) do
+		self.objInCells[obj][cell] = xrow
 		cell.sap:add(obj,x0,y0,x1,y1)
 	end
 end
@@ -343,7 +344,7 @@ local grid = function(cell_width,cell_height)
 		query			= query,
 		width 			= cell_width,
 		height 			= cell_height,
-		cells			= {},
+		cells			= setmetatable({},weakValues),
 		objInCells		= {},
 		endrefs			= {},
 		actives			= {},
