@@ -24,7 +24,6 @@ local tremove = table.remove
 local tsort = table.sort
 local pairs = pairs
 local assert = assert
-local weakValues = {_mode = 'v'}
 
 local boolop = 
 {
