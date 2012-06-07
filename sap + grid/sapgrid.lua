@@ -70,7 +70,7 @@ local newSAP = function ()
 		if pairflags == 11 then
 			self.actives[obj1][obj2] = true
 			self.actives[obj2][obj1] = true
-		elseif pairflags == 10 or pairflags == 01 then
+		elseif pairflags ~= 0 then
 			self.actives[obj1][obj2] = nil
 			self.actives[obj2][obj1] = nil
 		end
