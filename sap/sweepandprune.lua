@@ -87,8 +87,9 @@ local changeFlags = function (self,mode,obj1,obj2)
 	self.boolflags[obj2][obj1] = newflag
 end
 
-local processSets = function (self,mode,endpoint,obj,setMaintain,...)
+local processSets = function (self,mode,endpoint,setMaintain,...)
 	local setsCollide = {...}
+	local obj = endpoint.obj
 	
 	if endpoint.interval == 0 then
 		setMaintain[obj] = obj
@@ -106,10 +107,10 @@ end
 local SweepAndPrune = function (self,axis)
 	local intervalT
 	local bufferT
-	local setInsert
-	local setInterval
 	local xormode
 	local truemode
+	local setInsert
+	local setInterval
 	
 	if axis == 'x' then
 		intervalT 	= self.xintervals
@@ -141,9 +142,8 @@ local SweepAndPrune = function (self,axis)
 		elseif insertEP and self.deletebuffer[insertEP.obj] then
 			tremove(bufferT,j)
 			removeAllReferences(self,axis,insertEP)
-			
 		elseif insertEP and (not endpoint or ifOrder(insertEP,endpoint)) then				
-			processSets(self,truemode,insertEP,insertEP.obj,setInsert,setInsert,setInterval)
+			processSets(self,truemode,insertEP,setInsert,setInsert,setInterval)
 			
 			tinsert(intervalT,i,insertEP)				
 			tremove(bufferT,j)
@@ -152,8 +152,8 @@ local SweepAndPrune = function (self,axis)
 		elseif endpoint then			
 			local obj1 = endpoint.obj
 			
-			if setInsert then
-				processSets(self,truemode,endpoint,obj1,setInterval,setInsert)
+			if bufferT[1] then
+				processSets(self,truemode,endpoint,setInterval,setInsert)
 			end
 				
 			local k = i - 1
