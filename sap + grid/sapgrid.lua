@@ -22,7 +22,7 @@ local tremove 	= table.remove
 local tsort 	= table.sort
 local pairs 	= pairs
 local mfloor 	= math.floor
-local weakValues= {_mode = 'v'}
+local weakValues= {__mode = 'v'}
 local assert	= assert
 
 local newSAP = function ()
