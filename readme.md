@@ -13,11 +13,11 @@ There are two versions one can use:
 *	Stand alone SAP
 *	SAP with spatial subdivision (grid)
 
-Sap w/ grid is an optimized version of the stand alone SAP. It scales better with objects that change their positions a lot between updates.
+Sap w/ grid is an optimized version of the stand alone SAP. It scales well with objects that change their positions a lot between updates.
 
 The theory is this:
 
-The world is divided into "cells", and each cell has its own SAP instance. Objects register with each cell that they touch with their bounding boxes. Less sorting is done for each update because objects do not affect the interval lists from far away cells.
+The world is divided into "cells", and each cell has its own SAP instance. Objects register with each cell that they touch with their bounding boxes. Sorting is optimized for each update because objects do not affect the interval lists in far away cells.
 
 ## Resource
 
