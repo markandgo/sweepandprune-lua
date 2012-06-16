@@ -2,7 +2,6 @@
 
 ## Usage
 
----
 Load the SAP library.
 
 	sap = require 'sweepandprune'
