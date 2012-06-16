@@ -1,4 +1,6 @@
 --[[
+sapgrid.lua v1.0
+
 Copyright (c) <2012> <Minh Ngo>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software 
