@@ -1,5 +1,5 @@
 --[[
-sweepandprune.lua v1.0
+sweepandprune.lua v1.1
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -18,23 +18,20 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FO
 DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ]]--
-
--- sweep and prune (SAP)	
--- x0 < x1 and y0 < y1
 local tinsert = table.insert
 local tremove = table.remove
 local tsort = table.sort
 local pairs = pairs
 local assert = assert
 
-local boolop = 
+local boolop = -- table to set pairing flag
 {
 	x = {	TRUE 	= {[0] = 1,[1] = 0,[10] = 11,[11]	= 11},
 			XOR 	= {[0] = 1,[1] = 0,[10] = 11,[11]	= 10}
 		},
 	
 	y = {	TRUE 	= {[0] = 10,[1] = 11,[10] = 10,[11] = 11},
-			XOR 	= {[0] = 10,[1] = 11,[10] = 00,[11] = 01},
+			XOR 	= {[0] = 10,[1] = 11,[10] = 00,[11] = 01}
 		},
 }
 
@@ -43,21 +40,16 @@ boolop.xx = boolop.x.XOR
 boolop.yt = boolop.y.TRUE
 boolop.yx = boolop.y.XOR
 
-local deletePairing = function (t,obj)
-	for obj2,_ in pairs(t[obj]) do
-		t[obj2][obj] = nil
-	end
-end
-
-local removeAllReferences = function (self,axis,endpoint)
+local removeAllReferences = function (self,axis,endpoint) -- remove object from instance
 	if axis == 'y' and endpoint.interval == 1 then
 		local obj = endpoint.obj
-		deletePairing(self.actives,obj)
-		deletePairing(self.boolflags,obj)
 		
-		self.boolflags[obj] 	= nil
-		self.actives[obj] 		= nil
-		self.endrefs[obj] 		= nil
+		for otherObj,_ in pairs(self.objects[obj].pairflags) do
+			self.objects[otherObj].pairflags[obj] = nil
+			self.objects[otherObj].intersections[obj] = nil
+		end
+		
+		self.objects[obj]		= nil
 		self.deletebuffer[obj]  = nil
 	end
 end
@@ -68,28 +60,28 @@ local ifOrder = function (endpointA,endpointB)
 			endpointA.interval < endpointB.interval
 end
 
-local checkAndSetPair = function (self,obj1,obj2)
-	local pairflags = self.boolflags[obj1][obj2]
+local setPair = function (self,obj1,obj2) -- set pair when swapping
+	local flag = self.objects[obj1].pairflags[obj2]
 	
-	if pairflags == 11 then
-		self.actives[obj1][obj2] = true
-		self.actives[obj2][obj1] = true
-	elseif pairflags ~= 0 then
-		self.actives[obj1][obj2] = nil
-		self.actives[obj2][obj1] = nil
+	if flag == 11 then
+		self.objects[obj1].intersections[obj2] = true
+		self.objects[obj2].intersections[obj1] = true
+	elseif flag ~= 0 then
+		self.objects[obj1].intersections[obj2] = nil
+		self.objects[obj2].intersections[obj1] = nil
 	end
 end
 
-local changeFlags = function (self,mode,obj1,obj2)
+local setFlag = function (self,mode,obj1,obj2) -- set flag when swapping
 	local bitT 		= boolop[mode]
-	local inputflag = self.boolflags[obj1][obj2] or 0
-	local newflag	= bitT[inputflag]
+	local oldflag	= self.objects[obj1].pairflags[obj2] or 0
+	local newflag	= bitT[oldflag]
 	
-	self.boolflags[obj1][obj2] = newflag
-	self.boolflags[obj2][obj1] = newflag
+	self.objects[obj1].pairflags[obj2] = newflag
+	self.objects[obj2].pairflags[obj1] = newflag
 end
 
-local processSets = function (self,mode,endpoint,setMaintain,...)
+local processSets = function (self,mode,endpoint,setMaintain,...) -- set flag on insertion events
 	local setsCollide = {...}
 	local obj = endpoint.obj
 	
@@ -99,8 +91,8 @@ local processSets = function (self,mode,endpoint,setMaintain,...)
 		setMaintain[obj] = nil
 		for _,set in ipairs(setsCollide) do
 			for obj2,_ in pairs(set) do
-				changeFlags(self,mode,obj,obj2)
-				checkAndSetPair(self,obj,obj2)
+				setFlag(self,mode,obj,obj2)
+				setPair(self,obj,obj2)
 			end
 		end
 	end
@@ -167,12 +159,12 @@ local SweepAndPrune = function (self,axis)
 				k = k - 1
 				
 				if endpoint.interval == endpoint2.interval then
-					changeFlags(self,truemode,obj1,obj2)
+					setFlag(self,truemode,obj1,obj2)
 				else
-					changeFlags(self,xormode,obj1,obj2)
+					setFlag(self,xormode,obj1,obj2)
 				end
 							
-				checkAndSetPair(self,obj1,obj2)
+				setPair(self,obj1,obj2)
 			end
 			intervalT[k+1] = endpoint
 			i = i + 1
@@ -184,47 +176,43 @@ end
 -------------------
 -- public interface
 
-local add = function (self,obj,x0,y0,x1,y1)
-	assert(not self.endrefs[obj],'object already inserted')
-	local x0t = {point = x0,interval = 0,obj = obj}
-	local y0t = {point = y0,interval = 0,obj = obj}
-	local x1t = {point = x1,interval = 1,obj = obj}
-	local y1t = {point = y1,interval = 1,obj = obj}
+local move = function (self,obj,x0,y0,x1,y1)
+	self.deletebuffer[obj]		= nil -- don't delete when moving
+	self.objects[obj].x0t.point = x0
+	self.objects[obj].y0t.point = y0
+	self.objects[obj].x1t.point = x1
+	self.objects[obj].y1t.point = y1
+end
 
-	self.boolflags[obj] = {}
-	self.actives[obj] = {}
-	self.endrefs[obj] = 
-		{
-		x0t = x0t,
-		y0t = y0t,
-		x1t = x1t,
-		y1t = y1t,
+local add = function (self,obj,x0,y0,x1,y1)
+	if not self.objects[obj] then
+		local x0t = {point = x0,interval = 0,obj = obj}
+		local y0t = {point = y0,interval = 0,obj = obj}
+		local x1t = {point = x1,interval = 1,obj = obj}
+		local y1t = {point = y1,interval = 1,obj = obj}
+
+		self.objects[obj] = {
+			x0t				= x0t,
+			y0t				= y0t,
+			x1t				= x1t,
+			y1t 			= y1t,
+			intersections	= {},
+			pairflags		= {},
 		}
-	
-	tinsert(self.xbuffer,	x0t)
-	tinsert(self.ybuffer,	y0t)
-	tinsert(self.xbuffer,	x1t)
-	tinsert(self.ybuffer,	y1t)
-	
+		
+		tinsert(self.xbuffer,x0t) -- batch insertion buffer
+		tinsert(self.ybuffer,y0t)
+		tinsert(self.xbuffer,x1t)
+		tinsert(self.ybuffer,y1t)
+	else -- update instead if object is already added
+		move(self,obj,x0,y0,x1,y1)
+	end
 	return obj
 end
 
 local delete = function (self,obj)
-	assert(self.endrefs[obj],'no such object exist!')
-	self.deletebuffer[obj] = obj
-end
-
-local move = function (self,obj,x0,y0,x1,y1)
-	assert(not self.deletebuffer[obj],'Cannot move object before deletion!')
-	local x0t = self.endrefs[obj].x0t
-	local y0t = self.endrefs[obj].y0t
-	local x1t = self.endrefs[obj].x1t
-	local y1t = self.endrefs[obj].y1t
-	
-	x0t.point = x0
-	y0t.point = y0
-	x1t.point = x1
-	y1t.point = y1
+	assert(self.objects[obj],'no such object exist!')
+	self.deletebuffer[obj] = obj -- batch deletion buffer
 end
 
 local update = function (self)
@@ -237,29 +225,31 @@ end
 
 local query = function (self,obj)
 	local list = {}
-	for obj2,_ in pairs(self.actives[obj]) do
+	for obj2,_ in pairs(self.objects[obj].intersections) do
 		list[obj2] = obj2
 	end
 	return list
 end
 
+local mt = {
+	add		= add,
+	delete	= delete,
+	move	= move,
+	update	= update,
+	query	= query,
+}	
+mt.__index = mt
+
 local SAP = function ()
 	local instance = {
 		xintervals 	= {},
 		yintervals	= {},
-		add 		= add,
-		delete 		= delete,
-		move		= move,
-		update		= update,
-		query		= query,
-		endrefs 	= {},
-		boolflags	= {},
-		actives		= {},
+		objects		= {},
 		deletebuffer= {},
 		xbuffer		= {},
 		ybuffer 	= {},
 	}
-	return instance
+	return setmetatable(instance,mt)
 end
 
 return SAP

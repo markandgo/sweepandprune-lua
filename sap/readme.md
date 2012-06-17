@@ -27,7 +27,7 @@ Delete the AABB for the given ID. Deletion is guaranteed in the next update call
 	sapA:delete(id)
 
 ---
-Update the SAP instance. Note that the add, move, and delete calls are buffered until update is called.
+Update the SAP instance. Intersecting AABB pairs are not updated from add, move, or delete calls until this is called.
 
 	sapA:update()
 
