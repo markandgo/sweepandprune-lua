@@ -11,4 +11,8 @@ SAP + grid shares the same methods with the stand alone SAP so see it's readme f
 	````lua
 	sapgrid		= require 'sapgrid'
 	sapgridA	= sapgrid(100,200) -- new instance with cell width (100) along the x-axis and cell height (200) along the y-axis
+	
+	-- You can change the cell width and height at any time:
+	sapgridA.width = 300
+	sapgridA.height = 300
 	````
