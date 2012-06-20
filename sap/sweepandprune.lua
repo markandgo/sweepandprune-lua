@@ -1,5 +1,5 @@
 --[[
-sweepandprune.lua v1.1
+sweepandprune.lua v1.2
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -22,30 +22,12 @@ local tinsert = table.insert
 local tremove = table.remove
 local tsort = table.sort
 local pairs = pairs
-local assert = assert
 
-local boolop = -- table to set pairing flag
-{
-	x = {	TRUE 	= {[0] = 1,[1] = 0,[10] = 11,[11]	= 11},
-			XOR 	= {[0] = 1,[1] = 0,[10] = 11,[11]	= 10}
-		},
-	
-	y = {	TRUE 	= {[0] = 10,[1] = 11,[10] = 10,[11] = 11},
-			XOR 	= {[0] = 10,[1] = 11,[10] = 00,[11] = 01}
-		},
-}
-
-boolop.xt = boolop.x.TRUE
-boolop.xx = boolop.x.XOR
-boolop.yt = boolop.y.TRUE
-boolop.yx = boolop.y.XOR
-
-local removeAllReferences = function (self,axis,endpoint) -- remove object from instance
+local removeObject = function (self,axis,endpoint) -- remove object from instance
 	if axis == 'y' and endpoint.interval == 1 then
 		local obj = endpoint.obj
 		
-		for otherObj,_ in pairs(self.objects[obj].pairflags) do
-			self.objects[otherObj].pairflags[obj] = nil
+		for otherObj,_ in pairs(self.objects[obj].intersections) do
 			self.objects[otherObj].intersections[obj] = nil
 		end
 		
@@ -54,45 +36,46 @@ local removeAllReferences = function (self,axis,endpoint) -- remove object from 
 	end
 end
 
-local ifOrder = function (endpointA,endpointB) 
-	return 	endpointA.point < endpointB.point or 
-			endpointA.point == endpointB.point and 
+local isOverlapping = function (self,obj1,obj2) -- bounding box overlap test
+	local ax1 = self.objects[obj1].x0t.value
+	local ay1 = self.objects[obj1].y0t.value
+	local ax2 = self.objects[obj1].x1t.value
+	local ay2 = self.objects[obj1].y1t.value
+	
+	local bx1 = self.objects[obj2].x0t.value
+	local by1 = self.objects[obj2].y0t.value
+	local bx2 = self.objects[obj2].x1t.value
+	local by2 = self.objects[obj2].y1t.value
+
+	return ax1 < bx2 and ax2 > bx1 and ay1 < by2 and ay2 > by1
+end
+
+local isSorted = function (endpointA,endpointB) -- comparison function
+	return 	endpointA.value < endpointB.value or 
+			endpointA.value == endpointB.value and 
 			endpointA.interval < endpointB.interval
 end
 
 local setPair = function (self,obj1,obj2) -- set pair when swapping
-	local flag = self.objects[obj1].pairflags[obj2]
-	
-	if flag == 11 then
+	if isOverlapping(self,obj1,obj2) then
 		self.objects[obj1].intersections[obj2] = true
 		self.objects[obj2].intersections[obj1] = true
-	elseif flag ~= 0 then
-		self.objects[obj1].intersections[obj2] = nil
-		self.objects[obj2].intersections[obj1] = nil
 	end
 end
 
-local setFlag = function (self,mode,obj1,obj2) -- set flag when swapping
-	local bitT 		= boolop[mode]
-	local oldflag	= self.objects[obj1].pairflags[obj2] or 0
-	local newflag	= bitT[oldflag]
-	
-	self.objects[obj1].pairflags[obj2] = newflag
-	self.objects[obj2].pairflags[obj1] = newflag
-end
-
-local processSets = function (self,mode,endpoint,setMaintain,...) -- set flag on insertion events
-	local setsCollide = {...}
-	local obj = endpoint.obj
-	
-	if endpoint.interval == 0 then
-		setMaintain[obj] = obj
-	else
-		setMaintain[obj] = nil
-		for _,set in ipairs(setsCollide) do
-			for obj2,_ in pairs(set) do
-				setFlag(self,mode,obj,obj2)
-				setPair(self,obj,obj2)
+local processSets = function (self,axis,endpoint,setMaintain,...) -- test object in setMaintain vs objects in setCollide
+	if axis == 'y' then
+		local setsCollide = {...}
+		local obj1 = endpoint.obj
+		
+		if endpoint.interval == 0 then
+			setMaintain[obj1] = obj1
+		else
+			setMaintain[obj1] = nil
+			for _,set in ipairs(setsCollide) do
+				for obj2,_ in pairs(set) do
+					setPair(self,obj1,obj2)
+				end
 			end
 		end
 	end
@@ -101,21 +84,15 @@ end
 local SweepAndPrune = function (self,axis)
 	local intervalT
 	local bufferT
-	local xormode
-	local truemode
 	local setInsert
 	local setInterval
 	
 	if axis == 'x' then
 		intervalT 	= self.xintervals
 		bufferT 	= self.xbuffer
-		xormode  	= 'xx'
-		truemode 	= 'xt'
 	else
 		intervalT 	= self.yintervals
 		bufferT 	= self.ybuffer
-		xormode  	= 'yx'
-		truemode 	= 'yt'
 	end
 	
 	if bufferT[1] then
@@ -127,44 +104,40 @@ local SweepAndPrune = function (self,axis)
 	local j = 1
 
 	while true do
-		local endpoint = intervalT[i]
-		local insertEP = bufferT[j]
+		local endpoint		= intervalT[i]
+		local newEndpoint	= bufferT[j]
 		
 		if endpoint and self.deletebuffer[endpoint.obj] then
 			tremove(intervalT,i)
-			removeAllReferences(self,axis,endpoint)
-		elseif insertEP and self.deletebuffer[insertEP.obj] then
+			removeObject(self,axis,endpoint)
+		elseif newEndpoint and self.deletebuffer[newEndpoint.obj] then
 			tremove(bufferT,j)
-			removeAllReferences(self,axis,insertEP)
-		elseif insertEP and (not endpoint or ifOrder(insertEP,endpoint)) then				
-			processSets(self,truemode,insertEP,setInsert,setInsert,setInterval)
+			removeObject(self,axis,newEndpoint)
+		elseif newEndpoint and (not endpoint or isSorted(newEndpoint,endpoint)) then
+			processSets(self,axis,newEndpoint,setInsert,setInsert,setInterval)
 			
-			tinsert(intervalT,i,insertEP)				
+			tinsert(intervalT,i,newEndpoint)				
 			tremove(bufferT,j)
 			
 			i = i + 1
 		elseif endpoint then			
-			local obj1 = endpoint.obj
-			
 			if bufferT[1] then
-				processSets(self,truemode,endpoint,setInterval,setInsert)
+				processSets(self,axis,endpoint,setInterval,setInsert)
 			end
 				
 			local k = i - 1
-			while k > 0 and not ifOrder(intervalT[k],endpoint) do
-				local endpoint2 = intervalT[k]
-				local obj2 = intervalT[k].obj
-			
-				intervalT[k+1] = intervalT[k]
-				k = k - 1
+			while k > 0 and not isSorted(intervalT[k],endpoint) do -- swap if not in order
+				local endpoint2	= intervalT[k] -- ep2 > ep
+				intervalT[k+1]	= endpoint2
 				
-				if endpoint.interval == endpoint2.interval then
-					setFlag(self,truemode,obj1,obj2)
-				else
-					setFlag(self,xormode,obj1,obj2)
+				if endpoint.interval == 0 and endpoint2.interval == 1 then -- [0 ep2 1] [0 ep1 1] // boxes art ^_^
+					setPair(self,endpoint.obj,endpoint2.obj)
+				elseif endpoint.interval == 1 and endpoint2.interval == 0 then
+					self.objects[endpoint.obj].intersections[endpoint2.obj] = nil
+					self.objects[endpoint2.obj].intersections[endpoint.obj] = nil
 				end
-							
-				setPair(self,obj1,obj2)
+				
+				k = k - 1
 			end
 			intervalT[k+1] = endpoint
 			i = i + 1
@@ -178,18 +151,18 @@ end
 
 local move = function (self,obj,x0,y0,x1,y1)
 	self.deletebuffer[obj]		= nil -- don't delete when moving
-	self.objects[obj].x0t.point = x0
-	self.objects[obj].y0t.point = y0
-	self.objects[obj].x1t.point = x1
-	self.objects[obj].y1t.point = y1
+	self.objects[obj].x0t.value = x0
+	self.objects[obj].y0t.value = y0
+	self.objects[obj].x1t.value = x1
+	self.objects[obj].y1t.value = y1
 end
 
 local add = function (self,obj,x0,y0,x1,y1)
 	if not self.objects[obj] then
-		local x0t = {point = x0,interval = 0,obj = obj}
-		local y0t = {point = y0,interval = 0,obj = obj}
-		local x1t = {point = x1,interval = 1,obj = obj}
-		local y1t = {point = y1,interval = 1,obj = obj}
+		local x0t = {value = x0,interval = 0,obj = obj}
+		local y0t = {value = y0,interval = 0,obj = obj}
+		local x1t = {value = x1,interval = 1,obj = obj}
+		local y1t = {value = y1,interval = 1,obj = obj}
 
 		self.objects[obj] = {
 			x0t				= x0t,
@@ -197,7 +170,6 @@ local add = function (self,obj,x0,y0,x1,y1)
 			x1t				= x1t,
 			y1t 			= y1t,
 			intersections	= {},
-			pairflags		= {},
 		}
 		
 		tinsert(self.xbuffer,x0t) -- batch insertion buffer
@@ -216,8 +188,8 @@ local delete = function (self,obj)
 end
 
 local update = function (self)
-	tsort(self.xbuffer,ifOrder)
-	tsort(self.ybuffer,ifOrder)
+	tsort(self.xbuffer,isSorted)
+	tsort(self.ybuffer,isSorted)
 		
 	SweepAndPrune (self,'x')
 	SweepAndPrune (self,'y')
