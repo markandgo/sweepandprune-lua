@@ -19,7 +19,7 @@ The theory is this:
 
 The world is divided into "cells", and each cell has its own SAP instance. Objects register with each cell that they touch with their bounding boxes. Sorting is optimized for each update because objects do not affect the interval lists in far away cells.
 
-Check out the LOVE (+0.7.2) demo: [Download] (https://github.com/downloads/markandgo/sweepandprune-lua/sapDemo1.1.love)
+Check out the LOVE (+0.7.2) demo: [Download] (https://github.com/downloads/markandgo/sweepandprune-lua/sapDemo1.2.love)
 
 ## Resource
 
