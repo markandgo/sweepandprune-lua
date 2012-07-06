@@ -159,10 +159,10 @@ end
 
 local add = function (self,obj,x0,y0,x1,y1)
 	if not self.objects[obj] then
-		local x0t = {value = x0,interval = 0,obj = obj}
-		local y0t = {value = y0,interval = 0,obj = obj}
-		local x1t = {value = x1,interval = 1,obj = obj}
-		local y1t = {value = y1,interval = 1,obj = obj}
+		local x0t = {value = nil,interval = 0,obj = obj}
+		local y0t = {value = nil,interval = 0,obj = obj}
+		local x1t = {value = nil,interval = 1,obj = obj}
+		local y1t = {value = nil,interval = 1,obj = obj}
 
 		self.objects[obj] = {
 			x0t				= x0t,
@@ -176,9 +176,8 @@ local add = function (self,obj,x0,y0,x1,y1)
 		tinsert(self.ybuffer,y0t)
 		tinsert(self.xbuffer,x1t)
 		tinsert(self.ybuffer,y1t)
-	else -- update instead if object is already added
-		move(self,obj,x0,y0,x1,y1)
 	end
+	move(self,obj,x0,y0,x1,y1)
 	return obj
 end
 

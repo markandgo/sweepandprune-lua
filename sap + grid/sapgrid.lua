@@ -237,9 +237,8 @@ grid_mt.add = function (self,obj,x0,y0,x1,y1)
 			intersections	= {},
 			cells			= {},
 		}
-	else
-		self:move(obj,x0,y0,x1,y1)
 	end
+	self:move(obj,x0,y0,x1,y1)
 	return obj
 end
 
@@ -252,8 +251,8 @@ grid_mt.delete = function (self,obj)
 	end
 end
 
-grid_mt.update = function (self)
-	for obj,_ in pairs(self.deletebuffer) do -- final deletion
+local clearDeleteBuffer = function(self)
+	for obj,_ in pairs(self.deletebuffer) do -- clear objects in delete buffer
 		for obj2,_ in pairs(self.objects[obj].intersections) do
 			self.objects[obj2].intersections[obj] = nil
 		end
@@ -261,6 +260,10 @@ grid_mt.update = function (self)
 		self.objects[obj]		= nil
 		self.deletebuffer[obj] 	= nil
 	end
+end
+
+grid_mt.update = function (self)
+	clearDeleteBuffer(self)
 
 	for x,xt in pairs(self.cells) do
 		for _,cell in pairs(xt) do
