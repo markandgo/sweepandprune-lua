@@ -1,5 +1,5 @@
 --[[
-sapgrid.lua v1.2
+sapgrid.lua v1.21
 
 Copyright (c) <2012> <Minh Ngo>
 

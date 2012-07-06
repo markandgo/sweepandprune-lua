@@ -1,5 +1,5 @@
 --[[
-sweepandprune.lua v1.2
+sweepandprune.lua v1.21
 
 Copyright (c) <2012> <Minh Ngo>
 
