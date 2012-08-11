@@ -1,5 +1,5 @@
 --[[
-sweepandprune.lua v1.21
+sweepandprune.lua v1.22
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -47,7 +47,7 @@ local isOverlapping = function (self,obj1,obj2) -- bounding box overlap test
 	local bx2 = self.objects[obj2].x1t.value
 	local by2 = self.objects[obj2].y1t.value
 
-	return ax1 < bx2 and ax2 > bx1 and ay1 < by2 and ay2 > by1
+	return ax1 <= bx2 and ax2 >= bx1 and ay1 <= by2 and ay2 >= by1
 end
 
 local isSorted = function (endpointA,endpointB) -- comparison function
