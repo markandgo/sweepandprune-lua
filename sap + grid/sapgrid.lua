@@ -1,5 +1,5 @@
 --[[
-sapgrid.lua v1.22
+sapgrid.lua v1.23
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -19,18 +19,17 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ]]--
 
-local tinsert 	= table.insert
-local tremove 	= table.remove
-local tsort 	= table.sort
+local insert 	= table.insert
+local remove 	= table.remove
+local sort 		= table.sort
 local pairs 	= pairs
-local mfloor 	= math.floor
+local floor 	= math.floor
 local weakValues= {__mode = 'v'}
 
-local removeObject = function (self,axis,endpoint) -- remove object from instance
-	if axis == 'y' and endpoint.interval == 1 then
-		local obj = endpoint.obj
+local removeCallback = function (self) -- remove object from instance
+	for obj in pairs(self.deletebuffer) do
 		self.inSAP[obj]			= nil
-		self.deletebuffer[obj]	= nil
+		self.deletebuffer[obj]  = nil
 	end
 end
 
@@ -106,16 +105,14 @@ local SweepAndPrune = function (self,axis)
 		local newEndpoint	= bufferT[j]
 		
 		if endpoint and self.deletebuffer[endpoint.obj] then
-			tremove(intervalT,i)
-			removeObject(self,axis,endpoint)
+			remove(intervalT,i)
 		elseif newEndpoint and self.deletebuffer[newEndpoint.obj] then
-			tremove(bufferT,j)
-			removeObject(self,axis,newEndpoint)
+			remove(bufferT,j)
 		elseif newEndpoint and (not endpoint or isSorted(newEndpoint,endpoint)) then
 			processSets(self,axis,newEndpoint,setInsert,setInsert,setInterval)
 			
-			tinsert(intervalT,i,newEndpoint)				
-			tremove(bufferT,j)
+			insert(intervalT,i,newEndpoint)				
+			remove(bufferT,j)
 			
 			i = i + 1
 		elseif endpoint then			
@@ -150,10 +147,10 @@ end
 local add = function (self,obj,x0,y0,x1,y1)
 	if not self.inSAP[obj] then
 		self.inSAP[obj] = obj
-		tinsert(self.xbuffer,self.objects[obj].x0t) -- batch insertion buffer
-		tinsert(self.ybuffer,self.objects[obj].y0t)
-		tinsert(self.xbuffer,self.objects[obj].x1t)
-		tinsert(self.ybuffer,self.objects[obj].y1t)
+		insert(self.xbuffer,self.objects[obj].x0t) -- batch insertion buffer
+		insert(self.ybuffer,self.objects[obj].y0t)
+		insert(self.xbuffer,self.objects[obj].x1t)
+		insert(self.ybuffer,self.objects[obj].y1t)
 	end
 	self.deletebuffer[obj] = nil
 end
@@ -164,11 +161,11 @@ local delete = function (self,obj)
 end
 
 local update = function (self)
-	tsort(self.xbuffer,isSorted)
-	tsort(self.ybuffer,isSorted)
-		
+	sort(self.xbuffer,isSorted)
+	sort(self.ybuffer,isSorted)
 	SweepAndPrune (self,'x')
 	SweepAndPrune (self,'y')
+	removeCallback(self)
 end
 
 local sap = function (objects)
@@ -189,10 +186,10 @@ end
 -----------------------------
 -- grid interface
 
-local grid_mt = {}	
-grid_mt.__index = grid_mt
+local grid = {}	
+grid.__index = grid
 
-grid_mt.move = function (self,obj,x0,y0,x1,y1)
+grid.move = function (self,obj,x0,y0,x1,y1)
 	self.deletebuffer[obj] = nil -- override deletion when moving
 	
 	self.objects[obj].x0t.value = x0
@@ -200,10 +197,10 @@ grid_mt.move = function (self,obj,x0,y0,x1,y1)
 	self.objects[obj].x1t.value = x1
 	self.objects[obj].y1t.value = y1
 	
-	local cell_x0 = mfloor(x0/self.width)
-	local cell_x1 = mfloor(x1/self.width)
-	local cell_y0 = mfloor(y0/self.height)
-	local cell_y1 = mfloor(y1/self.height)
+	local cell_x0 = floor(x0/self.width)
+	local cell_x1 = floor(x1/self.width)
+	local cell_y0 = floor(y0/self.height)
+	local cell_y1 = floor(y1/self.height)
 	
 	for cell,_ in pairs(self.objects[obj].cells) do -- delete old cells
 		self.objects[obj].cells[cell] = nil
@@ -222,7 +219,7 @@ grid_mt.move = function (self,obj,x0,y0,x1,y1)
 	end	
 end
 
-grid_mt.add = function (self,obj,x0,y0,x1,y1)	
+grid.add = function (self,obj,x0,y0,x1,y1)	
 	if not self.objects[obj] then
 		local x0t = {value = nil,interval = 0,obj = obj}
 		local y0t = {value = nil,interval = 0,obj = obj}
@@ -242,7 +239,7 @@ grid_mt.add = function (self,obj,x0,y0,x1,y1)
 	return obj
 end
 
-grid_mt.delete = function (self,obj)
+grid.delete = function (self,obj)
 	assert(self.objects[obj],'invalid object')
 	self.deletebuffer[obj] = obj
 	
@@ -262,7 +259,7 @@ local clearDeleteBuffer = function(self)
 	end
 end
 
-grid_mt.update = function (self)
+grid.update = function (self)
 	clearDeleteBuffer(self)
 
 	for x,xt in pairs(self.cells) do
@@ -272,7 +269,7 @@ grid_mt.update = function (self)
 	end
 end
 
-grid_mt.query = function (self,obj)
+grid.query = function (self,obj)
 	local list = {}
 	for obj2,_ in pairs(self.objects[obj].intersections) do
 		list[obj2] = obj2
@@ -280,15 +277,18 @@ grid_mt.query = function (self,obj)
 	return list
 end
 
-local grid = function(cell_width,cell_height)
+grid.queryIter = function(self,obj)
+	return pairs(self:query(obj))
+end
+
+return function(cell_width,cell_height)
+	cell_width = cell_width or 100
 	local instance = {
-		width 			= cell_width or 100,
-		height 			= cell_height or 100,
+		width 			= cell_width,
+		height 			= cell_height or cell_width,
 		cells			= setmetatable({},weakValues),
 		objects			= {},
 		deletebuffer 	= {},
 	}
-	return setmetatable(instance,grid_mt)
+	return setmetatable(instance,grid)
 end
-
-return grid

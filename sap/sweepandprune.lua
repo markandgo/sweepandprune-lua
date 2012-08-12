@@ -1,5 +1,5 @@
 --[[
-sweepandprune.lua v1.22
+sweepandprune.lua v1.23
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -18,19 +18,16 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FO
 DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ]]--
-local tinsert = table.insert
-local tremove = table.remove
-local tsort = table.sort
+local insert = table.insert
+local remove = table.remove
+local sort = table.sort
 local pairs = pairs
 
-local removeObject = function (self,axis,endpoint) -- remove object from instance
-	if axis == 'y' and endpoint.interval == 1 then
-		local obj = endpoint.obj
-		
+local removeCallback = function (self) -- remove object from instance
+	for obj in pairs(self.deletebuffer) do
 		for otherObj,_ in pairs(self.objects[obj].intersections) do
 			self.objects[otherObj].intersections[obj] = nil
 		end
-		
 		self.objects[obj]		= nil
 		self.deletebuffer[obj]  = nil
 	end
@@ -58,8 +55,8 @@ end
 
 local setPair = function (self,obj1,obj2) -- set pair when swapping
 	if isOverlapping(self,obj1,obj2) then
-		self.objects[obj1].intersections[obj2] = true
-		self.objects[obj2].intersections[obj1] = true
+		self.objects[obj1].intersections[obj2] = obj2
+		self.objects[obj2].intersections[obj1] = obj1
 	end
 end
 
@@ -108,16 +105,14 @@ local SweepAndPrune = function (self,axis)
 		local newEndpoint	= bufferT[j]
 		
 		if endpoint and self.deletebuffer[endpoint.obj] then
-			tremove(intervalT,i)
-			removeObject(self,axis,endpoint)
+			remove(intervalT,i)
 		elseif newEndpoint and self.deletebuffer[newEndpoint.obj] then
-			tremove(bufferT,j)
-			removeObject(self,axis,newEndpoint)
+			remove(bufferT,j)
 		elseif newEndpoint and (not endpoint or isSorted(newEndpoint,endpoint)) then
 			processSets(self,axis,newEndpoint,setInsert,setInsert,setInterval)
 			
-			tinsert(intervalT,i,newEndpoint)				
-			tremove(bufferT,j)
+			insert(intervalT,i,newEndpoint)				
+			remove(bufferT,j)
 			
 			i = i + 1
 		elseif endpoint then			
@@ -148,8 +143,10 @@ local SweepAndPrune = function (self,axis)
 end
 -------------------
 -- public interface
+local s = {}
+s.__index = s
 
-local move = function (self,obj,x0,y0,x1,y1)
+s.move = function (self,obj,x0,y0,x1,y1)
 	self.deletebuffer[obj]		= nil -- don't delete when moving
 	self.objects[obj].x0t.value = x0
 	self.objects[obj].y0t.value = y0
@@ -157,7 +154,7 @@ local move = function (self,obj,x0,y0,x1,y1)
 	self.objects[obj].y1t.value = y1
 end
 
-local add = function (self,obj,x0,y0,x1,y1)
+s.add = function (self,obj,x0,y0,x1,y1)
 	if not self.objects[obj] then
 		local x0t = {value = nil,interval = 0,obj = obj}
 		local y0t = {value = nil,interval = 0,obj = obj}
@@ -172,29 +169,29 @@ local add = function (self,obj,x0,y0,x1,y1)
 			intersections	= {},
 		}
 		
-		tinsert(self.xbuffer,x0t) -- batch insertion buffer
-		tinsert(self.ybuffer,y0t)
-		tinsert(self.xbuffer,x1t)
-		tinsert(self.ybuffer,y1t)
+		insert(self.xbuffer,x0t) -- batch insertion buffer
+		insert(self.ybuffer,y0t)
+		insert(self.xbuffer,x1t)
+		insert(self.ybuffer,y1t)
 	end
-	move(self,obj,x0,y0,x1,y1)
+	self.move(self,obj,x0,y0,x1,y1)
 	return obj
 end
 
-local delete = function (self,obj)
+s.delete = function (self,obj)
 	assert(self.objects[obj],'no such object exist!')
 	self.deletebuffer[obj] = obj -- batch deletion buffer
 end
 
-local update = function (self)
-	tsort(self.xbuffer,isSorted)
-	tsort(self.ybuffer,isSorted)
-		
+s.update = function (self)
+	sort(self.xbuffer,isSorted)
+	sort(self.ybuffer,isSorted)
 	SweepAndPrune (self,'x')
 	SweepAndPrune (self,'y')
+	removeCallback(self)
 end
 
-local query = function (self,obj)
+s.query = function (self,obj)
 	local list = {}
 	for obj2,_ in pairs(self.objects[obj].intersections) do
 		list[obj2] = obj2
@@ -202,16 +199,11 @@ local query = function (self,obj)
 	return list
 end
 
-local mt = {
-	add		= add,
-	delete	= delete,
-	move	= move,
-	update	= update,
-	query	= query,
-}	
-mt.__index = mt
+s.queryIter = function(self,obj)
+	return pairs(self:query(obj))
+end
 
-local SAP = function ()
+return function ()
 	local instance = {
 		xintervals 	= {},
 		yintervals	= {},
@@ -220,7 +212,5 @@ local SAP = function ()
 		xbuffer		= {},
 		ybuffer 	= {},
 	}
-	return setmetatable(instance,mt)
+	return setmetatable(instance,s)
 end
-
-return SAP
