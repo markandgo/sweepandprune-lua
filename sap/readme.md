@@ -37,6 +37,15 @@ Query and return a list of all AABB's that intersect with the given ID.
 
 `list = sapA:query(id)`
 
+---
+Returns an iterator that returns every AABB's that intersects with the given ID.
+
+````lua
+for obj2 in sapA:queryIter(obj) do
+	...
+end
+````
+
 Example:
 
 ````lua
