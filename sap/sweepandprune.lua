@@ -1,5 +1,5 @@
 --[[
-sweepandprune.lua v1.23
+sweepandprune.lua v1.3
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -22,16 +22,6 @@ local insert = table.insert
 local remove = table.remove
 local sort = table.sort
 local pairs = pairs
-
-local removeCallback = function (self) -- remove object from instance
-	for obj in pairs(self.deletebuffer) do
-		for otherObj,_ in pairs(self.objects[obj].intersections) do
-			self.objects[otherObj].intersections[obj] = nil
-		end
-		self.objects[obj]		= nil
-		self.deletebuffer[obj]  = nil
-	end
-end
 
 local isOverlapping = function (self,obj1,obj2) -- bounding box overlap test
 	local ax1 = self.objects[obj1].x0t.value
@@ -183,12 +173,22 @@ s.delete = function (self,obj)
 	self.deletebuffer[obj] = obj -- batch deletion buffer
 end
 
+s._removeCallback = function (self) -- remove object from instance
+	for obj in pairs(self.deletebuffer) do
+		for otherObj,_ in pairs(self.objects[obj].intersections) do
+			self.objects[otherObj].intersections[obj] = nil
+		end
+		self.objects[obj]		= nil
+		self.deletebuffer[obj]  = nil
+	end
+end
+
 s.update = function (self)
 	sort(self.xbuffer,isSorted)
 	sort(self.ybuffer,isSorted)
 	SweepAndPrune (self,'x')
 	SweepAndPrune (self,'y')
-	removeCallback(self)
+	self._removeCallback(self)
 end
 
 s.query = function (self,obj)

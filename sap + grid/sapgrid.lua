@@ -1,5 +1,5 @@
 --[[
-sapgrid.lua v1.23
+sapgrid.lua v1.3
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -18,173 +18,10 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FO
 DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ]]--
+local insert,floor,pairs = table.insert,math.floor,pairs
 
-local insert 	= table.insert
-local remove 	= table.remove
-local sort 		= table.sort
-local pairs 	= pairs
-local floor 	= math.floor
-local weakValues= {__mode = 'v'}
-
-local removeCallback = function (self) -- remove object from instance
-	for obj in pairs(self.deletebuffer) do
-		self.inSAP[obj]			= nil
-		self.deletebuffer[obj]  = nil
-	end
-end
-
-local isOverlapping = function (self,obj1,obj2) -- bounding box overlap test
-	local ax1 = self.objects[obj1].x0t.value
-	local ay1 = self.objects[obj1].y0t.value
-	local ax2 = self.objects[obj1].x1t.value
-	local ay2 = self.objects[obj1].y1t.value
-	
-	local bx1 = self.objects[obj2].x0t.value
-	local by1 = self.objects[obj2].y0t.value
-	local bx2 = self.objects[obj2].x1t.value
-	local by2 = self.objects[obj2].y1t.value
-
-	return ax1 <= bx2 and ax2 >= bx1 and ay1 <= by2 and ay2 >= by1
-end
-
-local isSorted = function (endpointA,endpointB) -- comparison function
-	return 	endpointA.value < endpointB.value or 
-			endpointA.value == endpointB.value and 
-			endpointA.interval < endpointB.interval
-end
-
-local setPair = function (self,obj1,obj2) -- set pair when swapping
-	if isOverlapping(self,obj1,obj2) then
-		self.objects[obj1].intersections[obj2] = true
-		self.objects[obj2].intersections[obj1] = true
-	end
-end
-
-local processSets = function (self,axis,endpoint,setMaintain,...) -- test object in setMaintain vs objects in setCollide
-	if axis == 'y' then
-		local setsCollide = {...}
-		local obj1 = endpoint.obj
-		
-		if endpoint.interval == 0 then
-			setMaintain[obj1] = obj1
-		else
-			setMaintain[obj1] = nil
-			for _,set in ipairs(setsCollide) do
-				for obj2,_ in pairs(set) do
-					setPair(self,obj1,obj2)
-				end
-			end
-		end
-	end
-end
-
-local SweepAndPrune = function (self,axis)
-	local intervalT
-	local bufferT
-	local setInsert
-	local setInterval
-	
-	if axis == 'x' then
-		intervalT 	= self.xintervals
-		bufferT 	= self.xbuffer
-	else
-		intervalT 	= self.yintervals
-		bufferT 	= self.ybuffer
-	end
-	
-	if bufferT[1] then
-		setInsert		= {}
-		setInterval 	= {}
-	end
-	
-	local i = 1
-	local j = 1
-
-	while true do
-		local endpoint		= intervalT[i]
-		local newEndpoint	= bufferT[j]
-		
-		if endpoint and self.deletebuffer[endpoint.obj] then
-			remove(intervalT,i)
-		elseif newEndpoint and self.deletebuffer[newEndpoint.obj] then
-			remove(bufferT,j)
-		elseif newEndpoint and (not endpoint or isSorted(newEndpoint,endpoint)) then
-			processSets(self,axis,newEndpoint,setInsert,setInsert,setInterval)
-			
-			insert(intervalT,i,newEndpoint)				
-			remove(bufferT,j)
-			
-			i = i + 1
-		elseif endpoint then			
-			if bufferT[1] then
-				processSets(self,axis,endpoint,setInterval,setInsert)
-			end
-				
-			local k = i - 1
-			while k > 0 and not isSorted(intervalT[k],endpoint) do -- swap if not in order
-				local endpoint2	= intervalT[k] -- ep2 > ep
-				intervalT[k+1]	= endpoint2
-				
-				if endpoint.interval == 0 and endpoint2.interval == 1 then -- [0 ep2 1] [0 ep1 1] // boxes art ^_^
-					setPair(self,endpoint.obj,endpoint2.obj)
-				elseif endpoint.interval == 1 and endpoint2.interval == 0 then
-					self.objects[endpoint.obj].intersections[endpoint2.obj] = nil
-					self.objects[endpoint2.obj].intersections[endpoint.obj] = nil
-				end
-				
-				k = k - 1
-			end
-			intervalT[k+1] = endpoint
-			i = i + 1
-		else
-			break
-		end
-	end
-end
--------------------
--- sap interface
-
-local add = function (self,obj,x0,y0,x1,y1)
-	if not self.inSAP[obj] then
-		self.inSAP[obj] = obj
-		insert(self.xbuffer,self.objects[obj].x0t) -- batch insertion buffer
-		insert(self.ybuffer,self.objects[obj].y0t)
-		insert(self.xbuffer,self.objects[obj].x1t)
-		insert(self.ybuffer,self.objects[obj].y1t)
-	end
-	self.deletebuffer[obj] = nil
-end
-
-local delete = function (self,obj)
-	assert(self.inSAP[obj],'no such object exist!')
-	self.deletebuffer[obj] = obj -- batch deletion buffer
-end
-
-local update = function (self)
-	sort(self.xbuffer,isSorted)
-	sort(self.ybuffer,isSorted)
-	SweepAndPrune (self,'x')
-	SweepAndPrune (self,'y')
-	removeCallback(self)
-end
-
-local sap = function (objects)
-	local instance = {
-		add			= add,
-		delete		= delete,
-		update		= update,
-		xintervals 	= {},
-		yintervals	= {},
-		objects		= objects,
-		deletebuffer= {},
-		xbuffer		= {},
-		ybuffer 	= {},
-		inSAP		= {},
-	}
-	return instance
-end
------------------------------
--- grid interface
+local path = (...):match('^.*[%.%/]') or ''
+local sap = require(path .. 'sweepandprune')
 
 local grid = {}	
 grid.__index = grid
@@ -202,19 +39,18 @@ grid.move = function (self,obj,x0,y0,x1,y1)
 	local cell_y0 = floor(y0/self.height)
 	local cell_y1 = floor(y1/self.height)
 	
-	for cell,_ in pairs(self.objects[obj].cells) do -- delete old cells
-		self.objects[obj].cells[cell] = nil
-		cell.sap:delete(obj)
+	local rows = self.objects[obj].rows
+	for sap,_ in pairs(rows) do -- delete old cells
+		rows[sap] = nil
+		sap:delete(obj)
 	end
 	
 	for x = cell_x0,cell_x1 do -- put object into new cells
-		self.cells[x] = self.cells[x] or setmetatable({},weakValues)
 		for y = cell_y0,cell_y1 do
-			self.cells[x][y] = self.cells[x][y] or {sap = sap(self.objects)}
-			local cell = self.cells[x][y]
-			
-			self.objects[obj].cells[cell] = self.cells[x] -- row reference to prevent garbage collecting
-			cell.sap:add(obj,x0,y0,x1,y1)
+			local row = self.cells[x]
+			local sap = row[y]
+			rows[sap] = row -- row reference to prevent garbage collecting
+			sap:add(obj)
 		end
 	end	
 end
@@ -232,7 +68,7 @@ grid.add = function (self,obj,x0,y0,x1,y1)
 			x1t				= x1t,
 			y1t				= y1t,
 			intersections	= {},
-			cells			= {},
+			rows			= {},
 		}
 	end
 	self:move(obj,x0,y0,x1,y1)
@@ -243,8 +79,8 @@ grid.delete = function (self,obj)
 	assert(self.objects[obj],'invalid object')
 	self.deletebuffer[obj] = obj
 	
-	for cell,_ in pairs(self.objects[obj].cells) do
-		cell.sap:delete(obj)
+	for sap,_ in pairs(self.objects[obj].rows) do
+		sap:delete(obj)
 	end
 end
 
@@ -263,8 +99,8 @@ grid.update = function (self)
 	clearDeleteBuffer(self)
 
 	for x,xt in pairs(self.cells) do
-		for _,cell in pairs(xt) do
-			cell.sap:update()
+		for y,sap in pairs(xt) do
+			sap:update()
 		end
 	end
 end
@@ -282,12 +118,46 @@ grid.queryIter = function(self,obj)
 end
 
 return function(cell_width,cell_height)
+	-- prepare cells table and new sap behavior
+	local _removeCallback	= function (self) -- remove object from instance
+		for obj in pairs(self.deletebuffer) do
+			self.inSAP[obj]			= nil
+			self.deletebuffer[obj]  = nil
+		end
+	end
+	local add = function (self,obj)
+		self.deletebuffer[obj]=nil
+		if not self.inSAP[obj] then
+			self.inSAP[obj]=obj
+			local x0t = self.objects[obj].x0t
+			local y0t = self.objects[obj].y0t
+			local x1t = self.objects[obj].x1t
+			local y1t = self.objects[obj].y1t
+			insert(self.xbuffer,x0t) -- batch insertion buffer
+			insert(self.ybuffer,y0t)
+			insert(self.xbuffer,x1t)
+			insert(self.ybuffer,y1t)
+		end
+	end
+	local objects	= {}
+	local yMeta		= {__index = function(t,y)
+		local s				= sap()
+		s.inSAP				= {}
+		s._removeCallback 	= _removeCallback
+		s.objects			= objects
+		s.add				= add
+		return rawset(t,y,s)[y]
+	end}
+	local xMeta		= {__mode = 'v',__index = function(t,x)
+		return rawset(t,x,setmetatable({},yMeta))[x]
+	end}
+
 	cell_width = cell_width or 100
 	local instance = {
 		width 			= cell_width,
 		height 			= cell_height or cell_width,
-		cells			= setmetatable({},weakValues),
-		objects			= {},
+		cells			= setmetatable({},xMeta),
+		objects			= objects,
 		deletebuffer 	= {},
 	}
 	return setmetatable(instance,grid)
