@@ -18,17 +18,16 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FO
 DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ]]--
-local insert,floor,pairs = table.insert,math.floor,pairs
+local insert,floor,ceil,pairs = table.insert,math.floor,math.ceil,pairs
 
-local path = (...):match('^.*[%.%/]') or ''
-local sap = require(path .. 'sweepandprune')
+local path  = (...):match('^.*[%.%/]') or ''
+local sap   = require(path .. 'sweepandprune')
 
-local grid = {}	
-grid.__index = grid
+local grid    = {}	
+grid.__index  = grid
 
 grid.move = function (self,obj,x0,y0,x1,y1)
-	self.deletebuffer[obj] = nil -- override deletion when moving
-	
+	self.deletebuffer[obj]      = nil -- override deletion when moving
 	self.objects[obj].x0t.value = x0
 	self.objects[obj].y0t.value = y0
 	self.objects[obj].x1t.value = x1
@@ -36,8 +35,8 @@ grid.move = function (self,obj,x0,y0,x1,y1)
 	
 	local cell_x0 = floor(x0/self.width)
 	local cell_x1 = floor(x1/self.width)
-	local cell_y0 = floor(y0/self.height)
-	local cell_y1 = floor(y1/self.height)
+	local cell_y0 = ceil(y0/self.height)-1 --https://love2d.org/forums/viewtopic.php?f=4&t=10462
+	local cell_y1 = ceil(y1/self.height)-1
 	
 	local rows = self.objects[obj].rows
 	for sap,_ in pairs(rows) do -- delete old cells
@@ -63,12 +62,12 @@ grid.add = function (self,obj,x0,y0,x1,y1)
 		local y1t = {value = nil,interval = 1,obj = obj}
 
 		self.objects[obj] = {
-			x0t				= x0t,
-			y0t				= y0t,
-			x1t				= x1t,
-			y1t				= y1t,
-			intersections	= {},
-			rows			= {},
+			x0t           = x0t,
+			y0t           = y0t,
+			x1t           = x1t,
+			y1t           = y1t,
+			intersections = {},
+			rows          = {},
 		}
 	end
 	self:move(obj,x0,y0,x1,y1)
@@ -89,9 +88,8 @@ local clearDeleteBuffer = function(self)
 		for obj2,_ in pairs(self.objects[obj].intersections) do
 			self.objects[obj2].intersections[obj] = nil
 		end
-		
-		self.objects[obj]		= nil
-		self.deletebuffer[obj] 	= nil
+		self.objects[obj]       = nil
+		self.deletebuffer[obj]  = nil
 	end
 end
 
@@ -121,12 +119,12 @@ return function(cell_width,cell_height)
 	-- prepare cells table and new sap behavior
 	local _removeCallback	= function (self) -- remove object from instance
 		for obj in pairs(self.deletebuffer) do
-			self.inSAP[obj]			= nil
+			self.inSAP[obj]         = nil
 			self.deletebuffer[obj]  = nil
 		end
 	end
 	local add = function (self,obj)
-		self.deletebuffer[obj]=nil
+		self.deletebuffer[obj] = nil
 		if not self.inSAP[obj] then
 			self.inSAP[obj]=obj
 			local x0t = self.objects[obj].x0t
@@ -139,26 +137,26 @@ return function(cell_width,cell_height)
 			insert(self.ybuffer,y1t)
 		end
 	end
-	local objects	= {}
-	local yMeta		= {__index = function(t,y)
-		local s				= sap()
-		s.inSAP				= {}
-		s._removeCallback 	= _removeCallback
-		s.objects			= objects
-		s.add				= add
+	local objects = {}
+	local yMeta   = {__index = function(t,y)
+		local s           = sap()
+		s.inSAP           = {}
+		s._removeCallback = _removeCallback
+		s.objects         = objects
+		s.add             = add
 		return rawset(t,y,s)[y]
 	end}
-	local xMeta		= {__mode = 'v',__index = function(t,x)
+	local xMeta   = {__mode = 'v',__index = function(t,x)
 		return rawset(t,x,setmetatable({},yMeta))[x]
 	end}
 
 	cell_width = cell_width or 100
 	local instance = {
-		width 			= cell_width,
-		height 			= cell_height or cell_width,
-		cells			= setmetatable({},xMeta),
-		objects			= objects,
-		deletebuffer 	= {},
+		width         = cell_width,
+		height        = cell_height or cell_width,
+		cells         = setmetatable({},xMeta),
+		objects       = objects,
+		deletebuffer  = {},
 	}
 	return setmetatable(instance,grid)
 end

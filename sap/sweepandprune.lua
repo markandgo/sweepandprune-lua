@@ -18,10 +18,10 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FO
 DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ]]--
-local insert = table.insert
-local remove = table.remove
-local sort = table.sort
-local pairs = pairs
+local insert  = table.insert
+local remove  = table.remove
+local sort    = table.sort
+local pairs   = pairs
 
 local isOverlapping = function (self,obj1,obj2) -- bounding box overlap test
 	local ax1 = self.objects[obj1].x0t.value
@@ -75,24 +75,24 @@ local SweepAndPrune = function (self,axis)
 	local setInterval
 	
 	if axis == 'x' then
-		intervalT 	= self.xintervals
-		bufferT 	= self.xbuffer
+		intervalT = self.xintervals
+		bufferT   = self.xbuffer
 	else
-		intervalT 	= self.yintervals
-		bufferT 	= self.ybuffer
+		intervalT = self.yintervals
+		bufferT   = self.ybuffer
 	end
 	
 	if bufferT[1] then
-		setInsert		= {}
-		setInterval 	= {}
+		setInsert   = {}
+		setInterval = {}
 	end
 	
 	local i = 1
 	local j = 1
 
 	while true do
-		local endpoint		= intervalT[i]
-		local newEndpoint	= bufferT[j]
+		local endpoint    = intervalT[i]
+		local newEndpoint = bufferT[j]
 		
 		if endpoint and self.deletebuffer[endpoint.obj] then
 			remove(intervalT,i)
@@ -101,19 +101,19 @@ local SweepAndPrune = function (self,axis)
 		elseif newEndpoint and (not endpoint or isSorted(newEndpoint,endpoint)) then
 			processSets(self,axis,newEndpoint,setInsert,setInsert,setInterval)
 			
-			insert(intervalT,i,newEndpoint)				
+			insert(intervalT,i,newEndpoint)
 			remove(bufferT,j)
 			
 			i = i + 1
-		elseif endpoint then			
+		elseif endpoint then
 			if bufferT[1] then
 				processSets(self,axis,endpoint,setInterval,setInsert)
 			end
 				
 			local k = i - 1
 			while k > 0 and not isSorted(intervalT[k],endpoint) do -- swap if not in order
-				local endpoint2	= intervalT[k] -- ep2 > ep
-				intervalT[k+1]	= endpoint2
+				local endpoint2 = intervalT[k] -- ep2 > ep
+				intervalT[k+1]  = endpoint2
 				
 				if endpoint.interval == 0 and endpoint2.interval == 1 then -- [0 ep2 1] [0 ep1 1] // boxes art ^_^
 					setPair(self,endpoint.obj,endpoint2.obj)
@@ -137,7 +137,7 @@ local s = {}
 s.__index = s
 
 s.move = function (self,obj,x0,y0,x1,y1)
-	self.deletebuffer[obj]		= nil -- don't delete when moving
+	self.deletebuffer[obj]      = nil -- don't delete when moving
 	self.objects[obj].x0t.value = x0
 	self.objects[obj].y0t.value = y0
 	self.objects[obj].x1t.value = x1
@@ -152,11 +152,11 @@ s.add = function (self,obj,x0,y0,x1,y1)
 		local y1t = {value = nil,interval = 1,obj = obj}
 
 		self.objects[obj] = {
-			x0t				= x0t,
-			y0t				= y0t,
-			x1t				= x1t,
-			y1t 			= y1t,
-			intersections	= {},
+			x0t           = x0t,
+			y0t           = y0t,
+			x1t           = x1t,
+			y1t           = y1t,
+			intersections = {},
 		}
 		
 		insert(self.xbuffer,x0t) -- batch insertion buffer
@@ -178,7 +178,7 @@ s._removeCallback = function (self) -- remove object from instance
 		for otherObj,_ in pairs(self.objects[obj].intersections) do
 			self.objects[otherObj].intersections[obj] = nil
 		end
-		self.objects[obj]		= nil
+		self.objects[obj]       = nil
 		self.deletebuffer[obj]  = nil
 	end
 end
@@ -205,12 +205,12 @@ end
 
 return function ()
 	local instance = {
-		xintervals 	= {},
-		yintervals	= {},
-		objects		= {},
-		deletebuffer= {},
-		xbuffer		= {},
-		ybuffer 	= {},
+		xintervals   = {},
+		yintervals   = {},
+		objects      = {},
+		deletebuffer = {},
+		xbuffer      = {},
+		ybuffer      = {},
 	}
 	return setmetatable(instance,s)
 end
