@@ -22,7 +22,7 @@ Update the position of the AABB for the given ID.
 	sapA:move(id,x0,y0,x1,y1)
 
 ---
-Delete the AABB for the given ID. Deletion is guaranteed in the next update call regardless of any add or move call.
+Delete the AABB for the given ID. Deletion is guaranteed unless add is called before the next update call.
 
 	sapA:delete(id)
 

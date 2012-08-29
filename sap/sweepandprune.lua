@@ -1,5 +1,5 @@
 --[[
-sweepandprune.lua v1.3
+sweepandprune.lua v1.3a
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -137,7 +137,6 @@ local s = {}
 s.__index = s
 
 s.move = function (self,obj,x0,y0,x1,y1)
-	self.deletebuffer[obj]      = nil -- don't delete when moving
 	self.objects[obj].x0t.value = x0
 	self.objects[obj].y0t.value = y0
 	self.objects[obj].x1t.value = x1
@@ -145,6 +144,7 @@ s.move = function (self,obj,x0,y0,x1,y1)
 end
 
 s.add = function (self,obj,x0,y0,x1,y1)
+	self.deletebuffer[obj] = nil
 	if not self.objects[obj] then
 		local x0t = {value = nil,interval = 0,obj = obj}
 		local y0t = {value = nil,interval = 0,obj = obj}
@@ -188,7 +188,7 @@ s.update = function (self)
 	sort(self.ybuffer,isSorted)
 	SweepAndPrune (self,'x')
 	SweepAndPrune (self,'y')
-	self._removeCallback(self)
+	self:_removeCallback()
 end
 
 s.query = function (self,obj)
