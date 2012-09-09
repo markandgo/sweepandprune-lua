@@ -1,5 +1,5 @@
 --[[
-sapgrid.lua v1.4b
+sapgrid.lua v1.4c
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -203,19 +203,20 @@ local raycast = function(self,x,y,dx,dy,isCoroutine)
 	-- delta is length on axis to cross one voxel
 	-- always take the shortest delta to reach the next nearest voxel
 	local xDelta,yDelta = a*xStep,d*yStep
-	dxRatio,dyRatio = a*x0+b-c,d*y0+e-f
+	dxRatio,dyRatio     = a*x0+b-c,d*y0+e-f
 	
 	repeat
 		local row = self.cells[x0]
 		if row and row[y0] then
-			-- if called as an iterator, iterate through all objects in the cell
-			-- otherwise, do function return
-			for obj,hitx,hity in row[y0]:iterRay(x,y,dx,dy) do
-				if isCoroutine then
-					if not set[obj] then coroutine.yield(obj,hitx,hity); set[obj]=true end
-				else 
-					return obj,hitx,hity 
+			-- if called as an iterator, iterate through all objects in the cell and the next cells
+			-- otherwise, just look for the earliest hit and return
+			if isCoroutine then
+				for obj,hitx,hity in row[y0]:iterRay(x,y,dx,dy) do
+						if not set[obj] then coroutine.yield(obj,hitx,hity); set[obj]=true end
 				end
+			else
+				local obj,hitx,hity = row[y0]:rayQuery(x,y,dx,dy)
+				if obj then return obj,hitx,hity end
 			end
 		end
 		
