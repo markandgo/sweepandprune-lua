@@ -1,5 +1,5 @@
 --[[
-sapgrid.lua v1.4
+sapgrid.lua v1.4a
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -193,6 +193,7 @@ grid.pointQuery = function(self,x,y)
 end
 
 local raycast = function(self,x,y,dx,dy,isCoroutine)
+	local set   = {}
 	local x0,y0 = floor(x/self.width),floor(y/self.height)
 	local dxRatio,dyRatio,xStep,yStep,smallest
 	-- cell side to check [0 1]
@@ -214,10 +215,14 @@ local raycast = function(self,x,y,dx,dy,isCoroutine)
 	repeat
 		local row = self.cells[x0]
 		if row and row[y0] then
-			local obj,hitx,hity = row[y0]:rayQuery(x,y,dx,dy)
-			if obj then 
-				if isCoroutine then coroutine.yield(obj,hitx,hity) 
-				else return obj,hitx,hity end
+			-- if called as an iterator, iterate through all objects in the cell
+			-- otherwise, do function return
+			for obj,hitx,hity in row[y0]:iterRay(x,y,dx,dy) do
+				if isCoroutine then
+					if not set[obj] then coroutine.yield(obj,hitx,hity); set[obj]=true end
+				else 
+					return obj,hitx,hity 
+				end
 			end
 		end
 		
