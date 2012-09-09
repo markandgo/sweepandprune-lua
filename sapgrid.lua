@@ -1,5 +1,5 @@
 --[[
-sapgrid.lua v1.4a
+sapgrid.lua v1.4b
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -157,9 +157,9 @@ end
 grid.areaQuery = function(self,x0,y0,x1,y1,mode)
 	local set     = {}
 	local cell_x0 = floor(x0/self.width)
-	local cell_x1 = floor(x1/self.width)
+	local cell_x1 = max(ceil(x1/self.width)-1,cell_x0)
 	local cell_y0 = floor(y0/self.height)
-	local cell_y1 = floor(y1/self.height)
+	local cell_y1 = max(ceil(y1/self.width)-1,cell_y0)
 	for x = cell_x0,cell_x1 do
 		local row = self.cells[x]
 		for y = cell_y0,cell_y1 do
@@ -178,17 +178,10 @@ grid.areaQuery = function(self,x0,y0,x1,y1,mode)
 end
 
 grid.pointQuery = function(self,x,y)
-	local set   = {}
 	local x0    = floor(x/self.width)
 	local y0    = floor(y/self.height)
 	if self.cells[x0] and self.cells[x0][y0] then
-		set[#set+1] = self.cells[x0][y0]:pointQuery(x,y)
-		for i = 2,#set do
-			for obj in pairs(set[i]) do
-				set[1][obj] = obj
-			end
-		end
-		return set[1]
+		return self.cells[x0][y0]:pointQuery(x,y)
 	end
 end
 
