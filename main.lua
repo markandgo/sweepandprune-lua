@@ -35,10 +35,6 @@ function love.update(dt)
 	p       = sapA:pointQuery(400,400)
 	r,px,py = sapA:rayQuery(line[1],line[2],line[3]-line[1],line[4]-line[2])
 	
-	-- returns in order all objects that intersects the line
-	for obj,hitx,hity in sapA:iterRay(line2[1],line2[2],line2[3]-line2[1],line2[4]-line2[2]) do
-		r2,p2x,p2y = obj,hitx,hity
-	end
 end
 
 function love.mousepressed(x,y,k)
@@ -87,6 +83,15 @@ function love.draw()
 		love.graphics.setColor(white)
 	end
 	love.graphics.circle('fill',400,400,5)
+	-----------------
+	-- draw contact point
+	-- returns in order all objects that intersects the line
+	local i = 1
+	for obj,hitx,hity in sapA:iterRay(line2[1],line2[2],line2[3]-line2[1],line2[4]-line2[2]) do
+		r2,p2x,p2y = obj,hitx,hity
+		love.graphics.print('hit ' .. i,p2x,p2y)
+		i = i + 1
+	end
 	-----------------
 	-- draw ray
 	love.graphics.setColor(white)	
