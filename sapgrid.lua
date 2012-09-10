@@ -1,5 +1,5 @@
 --[[
-sapgrid.lua v1.4c
+sapgrid.lua v1.4d
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -93,22 +93,21 @@ end
 grid.add = function (self,obj,x0,y0,x1,y1)	
 	self.deletebuffer[obj] = nil
 	if not self.objects[obj] then
-		local x0t = {value = nil,interval = 0,obj = obj}
+		local x0t   = {value = nil,interval = 0,obj = obj}
 		x0t.__index = x0t
-		local y0t = {value = nil,interval = 0,obj = obj}
+		local y0t   = {value = nil,interval = 0,obj = obj}
 		y0t.__index = y0t
-		local x1t = {value = nil,interval = 1,obj = obj}
+		local x1t   = {value = nil,interval = 1,obj = obj}
 		x1t.__index = x1t
-		local y1t = {value = nil,interval = 1,obj = obj}
+		local y1t   = {value = nil,interval = 1,obj = obj}
 		y1t.__index = y1t
 
 		self.objects[obj] = {
-			x0t           = x0t,
-			y0t           = y0t,
-			x1t           = x1t,
-			y1t           = y1t,
-			intersections = {},
-			rows          = {},
+			x0t   = x0t,
+			y0t   = y0t,
+			x1t   = x1t,
+			y1t   = y1t,
+			rows  = {},
 		}
 		self.objects[obj].__index = self.objects[obj]
 	end

@@ -1,5 +1,5 @@
 --[[
-sweepandprune.lua v1.4
+sweepandprune.lua v1.4a
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -102,15 +102,12 @@ local SweepAndPrune = function (self,axis)
 	local bufferT
 	local setInsert
 	local setInterval
-	local stablist
 	
 	if axis == 'x' then
 		intervalT = self.xintervals
-		stablist	= self.xstabs
 		bufferT   = self.xbuffer
 	else
 		intervalT = self.yintervals
-		stablist	= self.ystabs
 		bufferT   = self.ybuffer
 	end
 	
@@ -264,7 +261,7 @@ end
 
 -- http://lua-users.org/wiki/BinarySearch
 -- return left index and right index of v where li < v < ri
-local default_fcompval = function( e ) return e and e.value or nil end
+local default_fcompval = function( e ) return e and e.value end
 local fcomp = function( a,b ) return a < b end
 local binsearch = function( t,value,fcompval )
 	-- Initialise functions

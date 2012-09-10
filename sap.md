@@ -34,14 +34,36 @@ Update the SAP instance. Intersecting AABB pairs are not updated from add, move,
 ---
 Query and return a list of all AABB's that intersect with the given ID.
 
-
 `list = sapA:query(id)`
 
 ---
+Query an area and return a list of all AABB's that overlaps with the area. If enclosed is passed as true, then return a list of enclosed boxes only.
 
-See main.lua for more examples...
+`list = sapA:areaQuery(x0,y0,x1,y1,enclosed)`
 
+---
+Query a point and return a list of all AABB's that contains the point.
 
+`list = sapA:pointQuery(x0,y0,x1,y1)`
+
+---
+Shoot a ray and return the first box that is hit. Also return its point of contact.
+The ray only returns an object if it collides with it from the **outside**.
+Dx and dy are the lengths of the ray along the x and y axis,respectively. `
+isCoroutine` is an interal parameter for `_.iterRay`;don't touch it if you don't know what it is for.
+
+`obj,hitx,hity = sapA:rayQuery(x,y,dx,dy,isCoroutine)`
+
+---
+Return an iterator that returns all boxes and its contact point (in order) in its path.
+
+````lua
+for obj,hitx,hity in sapA:iterRay(x,y,dx,dy) do
+	...
+end
+````
+
+---
 Example:
 
 ````lua
@@ -72,3 +94,5 @@ intersects = sapA:query(obj1)
 -- object 1 is no longer intersecting object 2
 print(intersects[obj2]) --> nil
 ````
+
+**See main.lua for more examples...**
