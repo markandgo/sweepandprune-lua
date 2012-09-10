@@ -1,7 +1,9 @@
 --[[
 Collision detection between 2 boxes
 Red when colliding, white otherwise.
-Yellow when enclosure has a box
+Red when ray collides with a box
+Red when a point is contained by a box
+Yellow when area query detects a box
 ]]
 
 function love.load()
@@ -12,8 +14,8 @@ function love.load()
 	b2    = {x=250,y=300,w=100,h=100}
 	white = {255,255,255}
 	red   = {255,0,0}
-	line  = {400,300}
-	line2 = {200,300}
+	line  = {400,0,400,600}
+	line2 = {0,300,800,300}
 	b1.color = white
 	b2.color = white
 	sapA:add(b1,b1.x,b1.y,b1.x+b1.w,b1.y+b1.h)
@@ -27,10 +29,6 @@ function love.update(dt)
 	sapA:move(b1,b1.x,b1.y,b1.x+b1.w,b1.y+b1.h)
 	sapA:update()
 	-----------------
-	-- ray coordinates
-	line[3],line[4]   = math.cos(t)*400+line[1],math.sin(t)*400+line[2]
-	line2[3],line2[4] = math.cos(t)*400+line2[1],math.sin(t)*400+line2[2]
-	
 	-- queries
 	a1      = sapA:areaQuery(400,300,700,600,'enclosed') -- enclosed boxes only
 	a2      = sapA:areaQuery(100,100,120,120)
@@ -43,9 +41,18 @@ function love.update(dt)
 	end
 end
 
+function love.mousepressed(x,y,k)
+	if k == 'l' then
+		line[1],line[2],line[3],line[4] = line[3],line[4],x,y
+	end
+	if k == 'r' then
+		line2[1],line2[2],line2[3],line2[4] = line2[3],line2[4],x,y
+	end
+end
+
 function love.draw()
 	love.graphics.setColor(100,100,100)
-	-- sapA:draw() -- draw grid
+	sapA:draw() -- draw grid
 	love.graphics.setColor(255,255,255)
 	
 	if next(sapA:query(b1)) then b1.color = red else b1.color = white end

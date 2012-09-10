@@ -1,5 +1,5 @@
 --[[
-sweepandprune.lua v1.4a
+sweepandprune.lua v1.4e
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -384,85 +384,78 @@ s.pointQuery = function(self,x,y)
 	return yset
 end
 
---[[
-dda algorithm: ray traverses a voxel grid, each endpoint represents a line on the grid
-lines divide world into cells
-ray travels incrementally by touching the nearest endpoints (grid lines) first
-add a counter for an object when touching its interval from the outside
-subtract a counter for an object when ray leaves its interval
-when the ray touches an object on both axes (2 points), return it
---]]
+-- Raycast through a voxel grid
 local raycast = function(self,x,y,dx,dy,isCoroutine)
-	local multiset = {}
-	local xi,yi = 1,1; local xt,yt = self.xintervals,self.yintervals
+	local multiset  = {}
+	local xt,yt     = self.xintervals,self.yintervals
+	local xi,yi,_   = 1,1
 	-- find left most index > x and y
-	local xi,a = binsearch(xt,x) ; xi = a
-	local yi,a = binsearch(yt,y) ; yi = a
-	local i,unset = xi,{}
-	-- iterate backward and collect objects with intervals containg x or y
-	local xstab = xt[i] and xt[i].stabs or 0
-	while xstab > 0 do
-		i = i - 1
-		local ep,obj = xt[i],xt[i].obj
-		if ep.interval == 0 and not unset[obj] then 
-			multiset[obj] = multiset[obj] and multiset[obj] + 1 or 1
-			xstab = xstab - 1
-		else
-			unset[obj] = true
-		end
+	_,xi = binsearch(xt,x)
+	_,yi = binsearch(yt,y)
+	-- Iterate backward and collect intervals that contains the starting point.
+	-- Say that there is a ray pointing up and there is a box right above it. 
+	-- The ray is enclosed in the box left and right interval so it has a multiset value of 1.
+	-- Since the ray is vertical, it won't sweep the x axis list and collect objects.
+	-- When the ray touches the box bottom interval, it will return it as a collision instead of
+	-- missing it.
+	for i,obj in iterateStabs(xt,xi) do
+		multiset[obj] = 1
 	end
-	i,unset = yi,{}
-	local ystab = yt[i] and yt[i].stabs or 0
-	while ystab > 0 do
-		i = i - 1
-		local ep,obj = yt[i],yt[i].obj
-		if yt[i].interval == 0 and not unset[obj] then 
-			multiset[obj] = multiset[obj] and multiset[obj] + 1 or 1
-			ystab = ystab - 1
-		else
-			unset[obj] = true
-		end
+	for i,obj in iterateStabs(yt,yi) do
+		multiset[obj] = multiset[obj] and multiset[obj] + 1 or 1
 	end
 	
 	-- initial configurations
 	local xStep,yStep,smallest,dxRatio,dyRatio,xv,yv,xsidehit,ysidehit
 	local xt,yt = self.xintervals,self.yintervals
+	-- moving right(+), check left bound hit
 	if dx > 0 then 
 		xStep    = 1
 		xsidehit = 0
 	else
+		-- start at the left endpoint (<= x) when ray points left
 		xi       = xi - 1
 		xStep    = -1
 		xsidehit = 1
 	end
+	-- moving down(+) check top bound hit
 	if dy > 0 then 
 		yStep    = 1
 		ysidehit = 0
 	else
+		-- start at the top endpoint (<= y) when ray points up
 		yi       = yi - 1
 		yStep    = -1
 		ysidehit = 1
 	end
+	
 	-- initial calculation
 	xv = xt[xi] and xt[xi].value or xStep*math.huge
 	yv = yt[yi] and yt[yi].value or yStep*math.huge
-	dxRatio,dyRatio = (xv - x)/dx,(yv - y)/dy
-	smallest        = math.min(dxRatio,dyRatio)
+	-- hack for diving by zero
+	dxRatio,dyRatio = dx == 0 and math.huge or (xv - x)/dx,dy == 0 and math.huge or (yv - y)/dy
+	smallest        = min(dxRatio,dyRatio)
 	
 	-- voxel traversal loop
 	-- the shortest distance to the next line is used
 	while smallest <= 1 do
+		-- if the the next line is vertical...
 		if smallest == dxRatio then
+			-- if the line is an outside bound...
 			if xt[xi].interval == xsidehit then
 				multiset[xt[xi].obj] = multiset[xt[xi].obj] and multiset[xt[xi].obj] + 1 or 1
 			else
 				multiset[xt[xi].obj] = 0
 			end
+			-- if the box is hit on both axes
 			if multiset[xt[xi].obj] > 1 then
 				if isCoroutine then coroutine.yield(xt[xi].obj,xv,dxRatio*dy+y) 
 				else return xt[xi].obj,xv,dxRatio*dy+y end
 			end
-			xi = xi + xStep
+			-- update the ratio for the next step
+			xi      = xi + xStep
+			xv      = xt[xi] and xt[xi].value or xStep*math.huge
+			dxRatio = (xv - x)/dx
 		else
 			if yt[yi].interval == ysidehit then
 				multiset[yt[yi].obj] = multiset[yt[yi].obj] and multiset[yt[yi].obj] + 1 or 1
@@ -473,13 +466,12 @@ local raycast = function(self,x,y,dx,dy,isCoroutine)
 				if isCoroutine then coroutine.yield(yt[yi].obj,dyRatio*dx+x,yv)
 				else return yt[yi].obj,dyRatio*dx+x,yv end
 			end
-			yi = yi + yStep
+			yi      = yi + yStep
+			yv      = yt[yi] and yt[yi].value or yStep*math.huge
+			dyRatio = (yv - y)/dy
 		end
 		-- calculate for next loop
-		xv = xt[xi] and xt[xi].value or xStep*math.huge
-		yv = yt[yi] and yt[yi].value or yStep*math.huge
-		dxRatio,dyRatio = (xv - x)/dx,(yv - y)/dy
-		smallest        = math.min(dxRatio,dyRatio)
+		smallest        = min(dxRatio,dyRatio)
 	end
 end
 

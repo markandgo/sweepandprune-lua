@@ -1,5 +1,5 @@
 --[[
-sapgrid.lua v1.4d
+sapgrid.lua v1.4e
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -26,6 +26,7 @@ local setmt   = setmetatable
 
 local path    = (...):match('^.*[%.%/]') or ''
 local sap     = require(path .. 'sweepandprune')
+
 local add_mod = function (self,objT)
 	local obj = objT.x0t.obj
 	self.deletebuffer[obj] = nil
@@ -51,7 +52,7 @@ local weakKeys   = {__mode = 'k'}
 local grid    = {}	
 grid.__index  = function(t,k)
 	t[k] = grid[k]
-	return t[k]
+	return grid[k]
 end
 
 grid.move = function (self,obj,x0,y0,x1,y1)
@@ -65,7 +66,7 @@ grid.move = function (self,obj,x0,y0,x1,y1)
 	-- use max for point x1 = x0 cases
 	local cell_x1 = max(ceil(x1/self.width)-1,cell_x0)
 	local cell_y0 = floor(y0/self.height)
-	local cell_y1 = max(ceil(y1/self.width)-1,cell_y0)
+	local cell_y1 = max(ceil(y1/self.height)-1,cell_y0)
 	
 	local rows = self.objects[obj].rows
 	-- delete old references so garbage collector can take 
@@ -158,7 +159,7 @@ grid.areaQuery = function(self,x0,y0,x1,y1,mode)
 	local cell_x0 = floor(x0/self.width)
 	local cell_x1 = max(ceil(x1/self.width)-1,cell_x0)
 	local cell_y0 = floor(y0/self.height)
-	local cell_y1 = max(ceil(y1/self.width)-1,cell_y0)
+	local cell_y1 = max(ceil(y1/self.height)-1,cell_y0)
 	for x = cell_x0,cell_x1 do
 		local row = self.cells[x]
 		for y = cell_y0,cell_y1 do
@@ -187,23 +188,49 @@ end
 local raycast = function(self,x,y,dx,dy,isCoroutine)
 	local set   = {}
 	local x0,y0 = floor(x/self.width),floor(y/self.height)
-	local dxRatio,dyRatio,xStep,yStep,smallest
-	-- cell side to check [0 1]
-	-- moving positively --> add 1 to the current cell's coordinate [cell(x,y) ray ------> ]
-	local xside,yside = 0,0
-	-- set up our directions when stepping
-	if dx > 0 then xStep = 1 xside = 1 else xStep = -1 end
-	if dy > 0 then yStep = 1 yside = 1 else yStep = -1 end
 	
-	-- dxRatio: ((x0+xside)*width-x)/dx precalculations
-	local a,b,c = self.width/dx,xside*self.width/dx,x/dx
-	local d,e,f = self.height/dy,yside*self.height/dy,y/dy
+	local dxRatio,dyRatio,xDelta,yDelta,xStep,yStep,smallest,xStart,yStart
+	-- visualization of sides that we can check: [0 1]
+	-- if we're moving to the right, +1 to cell-x to
+	-- check the right side first as it's > our starting point
+	-- positive steps when moving right, neg steps when moving left
+	if dx > 0 then 
+		xStep   = 1 
+		xStart  = 1 
+	else 
+		xStep   = -1 
+		xStart  = 0
+	end
+	if dy > 0 then 
+		yStep   = 1 
+		yStart  = y0 + 1
+	else 
+		yStep   = -1 
+		yStart  = 0
+	end
 	
-	-- delta is length on axis to cross one voxel
-	-- always take the shortest delta to reach the next nearest voxel
-	local xDelta,yDelta = a*xStep,d*yStep
-	dxRatio,dyRatio     = a*x0+b-c,d*y0+e-f
+	-- dxRatio: (x0*width-x)/dx precalculations
+	-- xDelta is the ratio of the ray's width to reach the next vertical line on the x-axis
+	-- always take the shortest ratio to reach the nearest line on the grid
+	-- zero hack
+	if dx == 0 then
+		dxRatio = math.huge
+		xDelta  = 0
+	else
+		local a,b = self.width/dx,x/dx
+		dxRatio   = a*(x0+xStart)-b
+		xDelta    = a*xStep
+	end
+	if dy == 0 then
+		dyRatio = math.huge
+		yDelta  = 0
+	else
+		local a,b = self.height/dy,y/dy
+		dyRatio   = a*(y0+yStart)-b
+		yDelta    = a*yStep
+	end
 	
+	-- Use a repeat loop so that the ray checks its starting cell first before moving.
 	repeat
 		local row = self.cells[x0]
 		if row and row[y0] then
@@ -219,16 +246,14 @@ local raycast = function(self,x,y,dx,dy,isCoroutine)
 			end
 		end
 		
-		-- dxRatio,dyRatio = a*x0+b-c,d*y0+e-f
-		-- smallest distance ratio --> determines which cell wall was hit first
 		if dxRatio < dyRatio then
-			smallest = dxRatio
-			dxRatio = dxRatio + xDelta
-			x0 = x0 + xStep
+			smallest  = dxRatio
+			dxRatio   = dxRatio + xDelta
+			x0        = x0 + xStep
 		else
-			smallest = dyRatio
-			dyRatio = dyRatio + yDelta
-			y0 = y0 + yStep
+			smallest  = dyRatio
+			dyRatio   = dyRatio + yDelta
+			y0        = y0 + yStep
 		end
 	until smallest > 1
 end
