@@ -1,5 +1,5 @@
 --[[
-sapgrid.lua v1.4e
+sapgrid.lua v1.4f
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -203,7 +203,7 @@ local raycast = function(self,x,y,dx,dy,isCoroutine)
 	end
 	if dy > 0 then 
 		yStep   = 1 
-		yStart  = y0 + 1
+		yStart  = 1
 	else 
 		yStep   = -1 
 		yStart  = 0

@@ -388,7 +388,7 @@ end
 local raycast = function(self,x,y,dx,dy,isCoroutine)
 	local multiset  = {}
 	local xt,yt     = self.xintervals,self.yintervals
-	local xi,yi,_   = 1,1
+	local xi,yi     = 1,1
 	-- find left most index > x and y
 	_,xi = binsearch(xt,x)
 	_,yi = binsearch(yt,y)
