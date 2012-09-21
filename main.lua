@@ -11,7 +11,7 @@ function love.load()
 	-- sap   = require 'sweepandprune'
 	sapA  = sap(100,100)	
 	b1    = {x=0,y=0,w=100,h=100}
-	b2    = {x=250,y=300,w=100,h=100}
+	b2    = {x=250,y=250,w=100,h=100}
 	white = {255,255,255}
 	red   = {255,0,0}
 	line  = {400,0,400,600}
@@ -33,7 +33,7 @@ function love.update(dt)
 	a1      = sapA:areaQuery(400,300,700,600,'enclosed') -- enclosed boxes only
 	a2      = sapA:areaQuery(100,100,120,120)
 	p       = sapA:pointQuery(400,400)
-	r,px,py = sapA:rayQuery(line[1],line[2],line[3]-line[1],line[4]-line[2])
+	r,px,py = sapA:rayQuery(unpack(line))
 	
 end
 
@@ -87,7 +87,7 @@ function love.draw()
 	-- draw contact point
 	-- returns in order all objects that intersects the line
 	local i = 1
-	for obj,hitx,hity in sapA:iterRay(line2[1],line2[2],line2[3]-line2[1],line2[4]-line2[2]) do
+	for obj,hitx,hity in sapA:iterRay(unpack(line2)) do
 		r2,p2x,p2y = obj,hitx,hity
 		love.graphics.print('hit ' .. i,p2x,p2y)
 		i = i + 1

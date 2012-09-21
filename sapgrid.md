@@ -6,17 +6,38 @@
 
 SAP + grid shares the same methods with the stand alone SAP so see it's readme for documentation and examples.
 
-To draw the grid in LOVE, just call `_:draw()` in `love.draw`
+---
+Create a new SAP+grid instance. The `cell_width`,and `cell_height` parameters are optional.
 
-1. The default cell size is 100 by 100 when creating a new instance. You can choose your own cell size by giving the cell width and height as arguments. Each cell should be at least as large as the area of the average object. You can get away with a large cell size (2 to 4 times the size of your average object is a good place to start). You're free to determine the optimum cell size for your use.
+````lua
+sapgrid = require'sapgrid'
+sapA    = sapgrid([,cell_width [,cell_height]])
+````
 
-	Example:
+## Properties
+
+The cell width (default is `100`):
+
+`sapA.width`
+
+---
+The cell height (default is `100`:
+
+`sapA.height`
+
+## Functions
+
+Draw the cells:
+
+`sapA:draw()`
+
+## Example:
 	
-	````lua
-	sapgrid		= require 'sapgrid'
-	sapgridA	= sapgrid(100,200) -- new instance with cell width (100) along the x-axis and cell height (200) along the y-axis
-	
-	-- You can change the cell width and height at any time:
-	sapgridA.width = 300
-	sapgridA.height = 300
-	````
+````lua
+sapgrid		= require 'sapgrid'
+sapgridA	= sapgrid(100,200) -- new instance with cell width (100) along the x-axis and cell height (200) along the y-axis
+
+-- You can change the cell width and height at any time:
+sapgridA.width  = 300
+sapgridA.height = 300
+````

@@ -9,9 +9,12 @@ Load the SAP library.
 ---
 Create a new SAP instance. Your SAP instance is your "world" where you place your axis aligned bounding boxes (AABB).
 
+where `otherID's` are boxes paired with `id's`
+
 `sapA = sap()`
 
----
+## Functions
+
 Add a new AABB with the given ID where x0 <= x1 and y0 <= y1 and return the ID. The ID can be any Lua value (except `nil`).
 
 `id = sapA:add(id,x0,y0,x1,y1)`
@@ -34,12 +37,18 @@ Update the SAP instance. Intersecting AABB pairs are not updated from add, move,
 ---
 Query and return a list of all AABB's that intersect with the given ID.
 
-`list = sapA:query(id)`
+````lua 
+list = sapA:query(id)
+
+for otherID,otherID in pairs(list) do
+	...
+end
+````
 
 ---
-Query an area and return a list of all AABB's that overlaps with the area. If enclosed is passed as true, then return a list of enclosed boxes only.
+Query an area and return a list of all AABB's that overlaps with the area. If `enclosed` is passed as `true`, then return a list of enclosed boxes only.
 
-`list = sapA:areaQuery(x0,y0,x1,y1,enclosed)`
+`list = sapA:areaQuery(x0,y0,x1,y1[,enclosed])`
 
 ---
 Query a point and return a list of all AABB's that contains the point.
@@ -47,24 +56,23 @@ Query a point and return a list of all AABB's that contains the point.
 `list = sapA:pointQuery(x0,y0,x1,y1)`
 
 ---
-Shoot a ray and return the first box that is hit. Also return its point of contact.
-The ray only returns an object if it collides with it from the **outside**.
-Dx and dy are the lengths of the ray along the x and y axis,respectively. `
-isCoroutine` is an interal parameter for `_.iterRay`;don't touch it if you don't know what it is for.
+Shoot a ray from point `x0,y0` to `x1,y1` and return the first box that is hit. Also return its point of contact.
+The `isCoroutine` is an interal parameter.
 
-`obj,hitx,hity = sapA:rayQuery(x,y,dx,dy,isCoroutine)`
+`obj,hitx,hity = sapA:rayQuery(x0,y0,x1,y1[,isCoroutine])`
 
 ---
 Return an iterator that returns all boxes and its contact point (in order) in its path.
 
 ````lua
-for obj,hitx,hity in sapA:iterRay(x,y,dx,dy) do
+for obj,hitx,hity in sapA:iterRay(x0,y0,x1,y1) do
 	...
 end
 ````
 
----
-Example:
+## Example:
+
+**See main.lua for more examples...**
 
 ````lua
 sap 	= require 'sweepandprune'
@@ -94,5 +102,3 @@ intersects = sapA:query(obj1)
 -- object 1 is no longer intersecting object 2
 print(intersects[obj2]) --> nil
 ````
-
-**See main.lua for more examples...**

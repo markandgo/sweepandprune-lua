@@ -1,5 +1,5 @@
 --[[
-sweepandprune.lua v1.4e
+sweepandprune.lua v1.41
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -22,18 +22,13 @@ local insert  = table.insert
 local remove  = table.remove
 local sort    = table.sort
 local pairs   = pairs
-local min     = math.min
-local select  = select
-local unpack  = unpack
+local min     = function(a,b) return a < b and a or b end
 
 --[[
-for interval a [a1 a2] and b [b1 b2]:
-overlap when
-b1 <= a1 <= b2 and b1 <= a2 or a1 <= b1 <= a2 and a1 <= b2
+===================
+PRIVATE
+===================
 --]]
-local isOverlapping = function (ax1,ay1,ax2,ay2,bx1,by1,bx2,by2)
-	return ax1 <= bx2 and ax2 >= bx1 and ay1 <= by2 and ay2 >= by1
-end
 
 -- comparison function for insertion sort
 local isSorted = function (endpointA,endpointB)
@@ -42,40 +37,37 @@ local isSorted = function (endpointA,endpointB)
 	endpointA.interval < endpointB.interval
 end
 
--- check and set intersection pair when swapping endpoints
-local setPair = function (self,obj1,obj2)
-	local ax1 = self.objects[obj1].x0t.value
-	local ay1 = self.objects[obj1].y0t.value
-	local ax2 = self.objects[obj1].x1t.value
-	local ay2 = self.objects[obj1].y1t.value
+-- check for overlapping pairs when swapping endpoints
+local setPair = function (sap,obj1,obj2)
+	local ax1 = sap.objects[obj1].x0t.value
+	local ay1 = sap.objects[obj1].y0t.value
+	local ax2 = sap.objects[obj1].x1t.value
+	local ay2 = sap.objects[obj1].y1t.value
 	
-	local bx1 = self.objects[obj2].x0t.value
-	local by1 = self.objects[obj2].y0t.value
-	local bx2 = self.objects[obj2].x1t.value
-	local by2 = self.objects[obj2].y1t.value
+	local bx1 = sap.objects[obj2].x0t.value
+	local by1 = sap.objects[obj2].y0t.value
+	local bx2 = sap.objects[obj2].x1t.value
+	local by2 = sap.objects[obj2].y1t.value
 
-	if isOverlapping(ax1,ay1,ax2,ay2,bx1,by1,bx2,by2) then
-		self.objects[obj1].intersections[obj2] = obj2
-		self.objects[obj2].intersections[obj1] = obj1
+	if ax1 <= bx2 and ax2 >= bx1 and ay1 <= by2 and ay2 >= by1 then
+		sap.objects[obj1].paired[obj2] = obj2
+		sap.objects[obj2].paired[obj1] = obj1
 	end
 end
 
 -- forward insertion sort collects objects into setMaintain
--- if endpoint is an upperbound, then remove object from setMaintain and check if it intersects with setCollide
--- check on the last axis only
-local processSets = function (self,axis,endpoint,setMaintain,...)
-	if axis == 'y' then
-		local setsCollide = {...}
-		local obj1 = endpoint.obj
-		
-		if endpoint.interval == 0 then
-			setMaintain[obj1] = obj1
-		else
-			setMaintain[obj1] = nil
-			for _,set in ipairs(setsCollide) do
-				for obj2,_ in pairs(set) do
-					setPair(self,obj1,obj2)
-				end
+-- if endpoint is an upperbound, then remove object from setMaintain 
+-- and check its with objects in setsCollide
+local processSets = function (sap,endpoint,setMaintain,setsCollide)
+	local obj1 = endpoint.obj
+	
+	if endpoint.interval == 0 then
+		setMaintain[obj1] = obj1
+	else
+		setMaintain[obj1] = nil
+		for _,set in ipairs(setsCollide) do
+			for obj2 in pairs(set) do
+				setPair(sap,obj1,obj2)
 			end
 		end
 	end
@@ -96,176 +88,106 @@ local setStabs = function(list,i)
 	end
 end
 
--- insertion sort loop
-local SweepAndPrune = function (self,axis)
-	local intervalT
-	local bufferT
-	local setInsert
-	local setInterval
-	
-	if axis == 'x' then
-		intervalT = self.xintervals
-		bufferT   = self.xbuffer
+local swapCallback = function(sap,endpoint2,endpoint)
+	-- [0 ep2 1] [0 ep1 1] pre swap
+	local obj1,obj2 = endpoint.obj,endpoint2.obj
+	if endpoint.interval == 0 and endpoint2.interval == 1 then 
+		setPair(sap,obj1,obj2)
+		
+		endpoint2.stabs = endpoint2.stabs + 1
+		endpoint.stabs = endpoint.stabs + 1
+		
+	-- [0 ep2 [0  1] ep1 1] pre swap
+	elseif endpoint.interval == 1 and endpoint2.interval == 0 then
+		sap.objects[obj1].paired[obj2] = nil
+		sap.objects[obj2].paired[obj1] = nil
+		
+		endpoint2.stabs = endpoint2.stabs - 1
+		endpoint.stabs = endpoint.stabs - 1
 	else
-		intervalT = self.yintervals
-		bufferT   = self.ybuffer
+		endpoint2.stabs,endpoint.stabs = endpoint.stabs,endpoint2.stabs
 	end
-	
-	if bufferT[1] then
-		setInsert   = {}
-		setInterval = {}
+end
+
+local insertSort = function(sap,list,i)
+	local k = i - 1
+	local v = list[i]
+	while k > 0 and isSorted(v,list[k]) do
+		swapCallback(sap,list[k],v)
+		list[k+1] = list[k]
+		k         = k - 1
 	end
+	list[k+1] = v
+end
+
+-- sap loop
+local SweepAndPrune = function (sap,axis,intervalT,bufferT,deletebuffer)
+	local setInsert,setInterval
 	
-	local checkStab = setInsert or next(self.deletebuffer)
+	if bufferT[1] then setInsert = {}; setInterval = {} end
+	local checkStab = setInsert or next(deletebuffer)
 	
 	local i = 1
-	local j = 1
 
 	-- update stabbing number when there are insertion,deletion, and swap events
-	while true do
+	while intervalT[i] do
 		local endpoint    = intervalT[i]
-		local newEndpoint = bufferT[j]
+		local newEndpoint = bufferT[1]
 		
 		-- prioritize deletion and insertion events first
-		if endpoint and self.deletebuffer[endpoint.obj] then
+		if deletebuffer[endpoint.obj] then
 			remove(intervalT,i)
-		elseif newEndpoint and self.deletebuffer[newEndpoint.obj] then
-			remove(bufferT,j)
-		elseif newEndpoint and (not endpoint or isSorted(newEndpoint,endpoint)) then
-			processSets(self,axis,newEndpoint,setInsert,setInsert,setInterval)
+		elseif newEndpoint and deletebuffer[newEndpoint.obj] then
+			remove(bufferT,1)
+		elseif newEndpoint and isSorted(newEndpoint,endpoint) then
+			if axis == 'y' then
+				processSets(sap,newEndpoint,setInsert,{setInsert,setInterval})
+			end
 			
 			insert(intervalT,i,newEndpoint)
 			setStabs(intervalT,i)
-			remove(bufferT,j)
+			remove(bufferT,1)
 			
 			i = i + 1
 		
 		-- insertion sort block
-		elseif endpoint then
+		else
 			if checkStab then setStabs(intervalT,i) end
 		
-			if bufferT[1] then
-				processSets(self,axis,endpoint,setInterval,setInsert)
+			if bufferT[1] and axis == 'y' then
+				processSets(sap,endpoint,setInterval,{setInsert})
 			end
 				
-			local k = i - 1
-			while k > 0 and not isSorted(intervalT[k],endpoint) do
-				
-				-- ep2 ---> ep
-				local endpoint2 = intervalT[k]
-				intervalT[k+1]  = endpoint2
-				
-				-- [0 ep2 1] [0 ep1 1] pre swap
-				if endpoint.interval == 0 and endpoint2.interval == 1 then 
-					setPair(self,endpoint.obj,endpoint2.obj)
-					
-					endpoint2.stabs = endpoint2.stabs + 1
-					endpoint.stabs = endpoint.stabs + 1
-					
-				-- [0 ep2 [0  1] ep1 1] pre swap
-				elseif endpoint.interval == 1 and endpoint2.interval == 0 then
-					self.objects[endpoint.obj].intersections[endpoint2.obj] = nil
-					self.objects[endpoint2.obj].intersections[endpoint.obj] = nil
-					
-					endpoint2.stabs = endpoint2.stabs - 1
-					endpoint.stabs = endpoint.stabs - 1
-				else
-					endpoint2.stabs,endpoint.stabs = endpoint.stabs,endpoint2.stabs
-				end
-				
-				k = k - 1
-			end
-			intervalT[k+1] = endpoint
+			insertSort(sap,intervalT,i)
 			i = i + 1
+		end
+	end
+	-- insert the rest of the new endpoints
+	while bufferT[1] do
+		local newEndpoint = bufferT[1]
+		if newEndpoint and deletebuffer[newEndpoint.obj] then
+			remove(bufferT,1)
 		else
-			break
+			if axis == 'y' then
+				processSets(sap,newEndpoint,setInsert,{setInsert})
+			end
+			
+			insert(intervalT,i,newEndpoint)
+			setStabs(intervalT,i)
+			remove(bufferT,1)
+			
+			i = i + 1
 		end
 	end
 end
--------------------
--- public interface
 
--- cache k for next lookup
-local s = {}
-s.__index = function(t,k)
-	t[k] = s[k]
-	return s[k]
-end
-
-s.move = function (self,obj,x0,y0,x1,y1)
-	self.objects[obj].x0t.value = x0
-	self.objects[obj].y0t.value = y0
-	self.objects[obj].x1t.value = x1
-	self.objects[obj].y1t.value = y1
-end
-
-s.add = function (self,obj,x0,y0,x1,y1)
-	self.deletebuffer[obj] = nil
-	if not self.objects[obj] then
-		local x0t = {value = nil,interval = 0,obj = obj,stabs = 0}
-		local y0t = {value = nil,interval = 0,obj = obj,stabs = 0}
-		local x1t = {value = nil,interval = 1,obj = obj,stabs = 0}
-		local y1t = {value = nil,interval = 1,obj = obj,stabs = 0}
-
-		self.objects[obj] = {
-			x0t           = x0t,
-			y0t           = y0t,
-			x1t           = x1t,
-			y1t           = y1t,
-			intersections = {},
-		}
-		
-		insert(self.xbuffer,x0t) -- batch insertion buffer
-		insert(self.ybuffer,y0t)
-		insert(self.xbuffer,x1t)
-		insert(self.ybuffer,y1t)
-	end
-	self.move(self,obj,x0,y0,x1,y1)
-	return obj
-end
-
-s.delete = function (self,obj)
-	assert(self.objects[obj],'no such object exist!')
-	self.deletebuffer[obj] = obj 
-end
-
-s._removeCallback = function (self)
-	for obj in pairs(self.deletebuffer) do
-		for otherObj,_ in pairs(self.objects[obj].intersections) do
-			self.objects[otherObj].intersections[obj] = nil
-		end
-		self.objects[obj]       = nil
-		self.deletebuffer[obj]  = nil
-	end
-end
-
-s.update = function (self)
-	sort(self.xbuffer,isSorted)
-	sort(self.ybuffer,isSorted)
-	SweepAndPrune (self,'x')
-	SweepAndPrune (self,'y')
-	self:_removeCallback()
-end
-
-s.query = function (self,obj)
-	local list = {}
-	for obj2,_ in pairs(self.objects[obj].intersections) do
-		list[obj2] = obj2
-	end
-	return list
-end
-
--- ===============
--- ADVANCE QUERIES
--- ===============
-
--- http://lua-users.org/wiki/BinarySearch
+-- http://lua-userlocal org/wiki/BinarySearch
 -- return left index and right index of v where li < v < ri
-local default_fcompval = function( e ) return e and e.value end
-local fcomp = function( a,b ) return a < b end
-local binsearch = function( t,value,fcompval )
+local default_fcompval  = function( e ) return e and e.value end
+local fcomp             = function( a,b ) return a < b end
+local binsearch         = function( t,value)
 	-- Initialise functions
-	local fcompval = fcompval or default_fcompval
+	local fcompval = default_fcompval
 	--  Initialise numbers
 	local iStart,iEnd,iMid 	= 1,#t,0
 	-- assume 0 = -inf,#t+1 = inf
@@ -302,48 +224,116 @@ local binsearch = function( t,value,fcompval )
 	return start,last
 end
 
--- to reuse coroutines
-local coReuse = coroutine.wrap(function(t) -- for iterators
+-- iterate backward in the list until stabbing number = 0, return stabbed endpoint's object
+local iterStabs = coroutine.wrap(function(state)
 	while true do
-		t =  coroutine.yield(t[1]( select( 2,unpack(t) ) ) ) 
+		local t,i   = state[1],state[2]
+		local skip  = {}
+		local stabs = t[i] and t[i].stabs or 0
+		-- iterate backward and return stabbed endpoints
+		while stabs > 0 do
+			i = i - 1
+			local ep,obj = t[i],t[i].obj
+			if ep.interval == 0 and not skip[obj] then 
+				coroutine.yield(i,obj)
+				stabs     = stabs - 1
+			else skip[obj] = true end
+		end
+		state = coroutine.yield()
 	end
 end)
 
--- iterate backward in the list until stabbing number = 0, return stabbed endpoint's object
-local iterStabs = function(t,i)
-	local unset = {}
-	local stabs = t[i] and t[i].stabs or 0
-	-- iterate backward and return stabbed endpoints
-	while stabs > 0 do
-		i = i - 1
-		local ep,obj = t[i],t[i].obj
-		if ep.interval == 0 and not unset[obj] then 
-			coroutine.yield(i,obj)
-			stabs     = stabs - 1
-		else
-			unset[obj] = true
-		end
-	end
+local iterateStabs = function(t,i)
+	return iterStabs,{t,i}
 end
 
-local iterateStabs = function(t,i)
-	return coReuse,{iterStabs,t,i}
+--[[
+===================
+PUBLIC
+===================
+--]]
+local s   = {}
+s.__index = s
+
+s.move = function (self,obj,x0,y0,x1,y1)
+	self.objects[obj].x0t.value = x0
+	self.objects[obj].y0t.value = y0
+	self.objects[obj].x1t.value = x1
+	self.objects[obj].y1t.value = y1
+end
+
+s.add = function (self,obj,x0,y0,x1,y1)
+	self.deletebuffer[obj] = nil
+	if not self.objects[obj] then
+		local x0t = {value = x0,interval = 0,obj = obj,stabs = 0}
+		local y0t = {value = y0,interval = 0,obj = obj,stabs = 0}
+		local x1t = {value = x1,interval = 1,obj = obj,stabs = 0}
+		local y1t = {value = y1,interval = 1,obj = obj,stabs = 0}
+		
+		self.objects[obj] = {
+			x0t     = x0t,
+			y0t     = y0t,
+			x1t     = x1t,
+			y1t     = y1t,
+			paired  = {},
+		}
+		
+		insert(self.xbuffer,x0t) -- batch insertion buffer
+		insert(self.ybuffer,y0t)
+		insert(self.xbuffer,x1t)
+		insert(self.ybuffer,y1t)
+	else
+		self:move(obj,x0,y0,x1,y1)
+	end
+	return obj
+end
+
+s.delete = function (self,obj)
+	self.deletebuffer[obj] = obj 
+end
+
+s._delCallback = function(self)
+	for obj in pairs(self.deletebuffer) do
+		for obj2 in pairs(self.objects[obj].paired) do
+			self.objects[obj2].paired[obj] = nil
+		end
+	
+		self.objects[obj]       = nil
+		self.deletebuffer[obj]  = nil
+	end	
+end
+
+s.update = function (self)
+	sort(self.xbuffer,isSorted)
+	sort(self.ybuffer,isSorted)
+	SweepAndPrune (self,'x',self.xintervals,self.xbuffer,self.deletebuffer)
+	SweepAndPrune (self,'y',self.yintervals,self.ybuffer,self.deletebuffer)
+	self:_delCallback()
+end
+
+s.query = function (self,obj)
+	local list = {}
+	for obj2 in pairs(self.objects[obj].paired) do
+		list[obj2] = obj2
+	end
+	return list
 end
 
 s.areaQuery = function(self,x0,y0,x1,y1,enclosed)
-	local score = 0
-	if enclosed then score = 3 end
+	local score     = enclosed and 3 or 0
 	local xset,yset = {},{}
 	local xt,yt = self.xintervals,self.yintervals
 	-- find leftmost index > x and y
-	local xi,a = binsearch(xt,x0) ; xi = a
-	local yi,a = binsearch(yt,y0) ; yi = a
-	-- iterate backward and collect objects that contains the area
-	for i,obj in iterateStabs(xt,xi) do
-		xset[obj] = xset[obj] and xset[obj]+1 or 1
-	end
-	for i,obj in iterateStabs(yt,yi) do
-		yset[obj] = yset[obj] and yset[obj]+1 or 1
+	local _,xi = binsearch(xt,x0)
+	local _,yi = binsearch(yt,y0)
+	if not enclosed then
+		-- iterate backward and collect objects that contains the area
+		for i,obj in iterateStabs(xt,xi) do
+			xset[obj] = xset[obj] and xset[obj]+1 or 1
+		end
+		for i,obj in iterateStabs(yt,yi) do
+			yset[obj] = yset[obj] and yset[obj]+1 or 1
+		end
 	end
 	-- iterate from x0 to x1,y0 to y1 and collect boxes in the interval
 	while xt[xi] and xt[xi].value <= x1 do
@@ -372,8 +362,8 @@ end
 s.pointQuery = function(self,x,y)
 	local xset,yset = {},{}
 	local xt,yt = self.xintervals,self.yintervals
-	local xi,a = binsearch(xt,x) ; xi = a
-	local yi,a = binsearch(yt,y) ; yi = a
+	local _,xi  = binsearch(xt,x)
+	local _,yi  = binsearch(yt,y)
 	for i,obj in iterateStabs(xt,xi) do
 		xset[obj] = obj
 	end
@@ -385,29 +375,17 @@ s.pointQuery = function(self,x,y)
 end
 
 -- Raycast through a voxel grid
-local raycast = function(self,x,y,dx,dy,isCoroutine)
+s.rayQuery = function(self,x,y,x2,y2,isCoroutine)
+	local dx,dy     = x2-x,y2-y
 	local multiset  = {}
 	local xt,yt     = self.xintervals,self.yintervals
-	local xi,yi     = 1,1
 	-- find left most index > x and y
-	_,xi = binsearch(xt,x)
-	_,yi = binsearch(yt,y)
-	-- Iterate backward and collect intervals that contains the starting point.
-	-- Say that there is a ray pointing up and there is a box right above it. 
-	-- The ray is enclosed in the box left and right interval so it has a multiset value of 1.
-	-- Since the ray is vertical, it won't sweep the x axis list and collect objects.
-	-- When the ray touches the box bottom interval, it will return it as a collision instead of
-	-- missing it.
-	for i,obj in iterateStabs(xt,xi) do
-		multiset[obj] = 1
-	end
-	for i,obj in iterateStabs(yt,yi) do
-		multiset[obj] = multiset[obj] and multiset[obj] + 1 or 1
-	end
+	local xi,yi = 1,1
+	local _,xi  = binsearch(xt,x)
+	local _,yi  = binsearch(yt,y)
 	
 	-- initial configurations
-	local xStep,yStep,smallest,dxRatio,dyRatio,xv,yv,xsidehit,ysidehit
-	local xt,yt = self.xintervals,self.yintervals
+	local xStep,yStep,xsidehit,ysidehit
 	-- moving right(+), check left bound hit
 	if dx > 0 then 
 		xStep    = 1
@@ -429,12 +407,26 @@ local raycast = function(self,x,y,dx,dy,isCoroutine)
 		ysidehit = 1
 	end
 	
-	-- initial calculation
-	xv = xt[xi] and xt[xi].value or xStep*math.huge
-	yv = yt[yi] and yt[yi].value or yStep*math.huge
-	-- hack for diving by zero
-	dxRatio,dyRatio = dx == 0 and math.huge or (xv - x)/dx,dy == 0 and math.huge or (yv - y)/dy
-	smallest        = min(dxRatio,dyRatio)
+	-- set to infinity if value doesn't exist
+	local xv = xt[xi] and xt[xi].value or xStep*math.huge
+	local yv = yt[yi] and yt[yi].value or yStep*math.huge
+	-- set to infinity when delta's are 0
+	local dxRatio   = dx == 0 and math.huge or (xv - x)/dx
+	local dyRatio   = dy == 0 and math.huge or (yv - y)/dy
+	local smallest  = min(dxRatio,dyRatio)
+	
+	-- Iterate backward and collect intervals that contains the starting point.
+	-- Useful for colliding internally with a box
+	for i,obj in iterateStabs(xt,xi+xsidehit) do
+		multiset[obj] = 1
+	end
+	for i,obj in iterateStabs(yt,yi+ysidehit) do
+		multiset[obj] = multiset[obj] and multiset[obj] + 1 or 1
+		if multiset[obj] > 1 then
+			if isCoroutine then coroutine.yield(obj,x+smallest*dx,y+smallest*dy)
+			else return obj,x+smallest*dx,y+smallest*dy end
+		end
+	end
 	
 	-- voxel traversal loop
 	-- the shortest distance to the next line is used
@@ -475,22 +467,21 @@ local raycast = function(self,x,y,dx,dy,isCoroutine)
 	end
 end
 
-s.rayQuery = raycast
-
-s.iterRay = function(self,x,y,dx,dy)
+s.iterRay = function(self,x,y,x2,y2)
 	return coroutine.wrap(function()
-		raycast(self,x,y,dx,dy,true)
+		s.rayQuery(self,x,y,x2,y2,true)
 	end)
 end
 
-return function ()
-	local instance = {
-		xintervals   = {},
-		yintervals   = {},
-		objects      = {},
-		deletebuffer = {},
-		xbuffer      = {},
-		ybuffer      = {},
-	}
-	return setmetatable(instance,s)
+s.new = function()
+	return setmetatable({
+			xintervals   = {},
+			yintervals   = {},
+			objects      = {},
+			deletebuffer = {},
+			xbuffer      = {},
+			ybuffer      = {},
+		},s)
 end
+
+return setmetatable(s,{__call = function(s) return s.new() end})

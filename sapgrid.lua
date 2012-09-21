@@ -1,5 +1,5 @@
 --[[
-sapgrid.lua v1.4f
+sapgrid.lua v1.41
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -18,21 +18,35 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FO
 DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ]]--
+
+--[[
+===================
+INITIAL STUFF
+===================
+--]]
+
 local insert 	= table.insert
 local floor		= math.floor
 local ceil		= math.ceil
-local max			= math.max
+local max			= function(a,b) return a > b and a or b end
 local setmt   = setmetatable
 
 local path    = (...):match('^.*[%.%/]') or ''
 local sap     = require(path .. 'sweepandprune')
 
-local add_mod = function (self,objT)
+local weakValues = {__mode = 'v'}
+local weakKeys   = {__mode = 'k'}
+
+local DEFAULT_CELL_WIDTH  = 100
+local DEFAULT_CELL_HEIGHT = 100
+
+-- modification to sap so it works with the grid
+local sap_add = function (self,objT)
 	local obj = objT.x0t.obj
 	self.deletebuffer[obj] = nil
 	if not self.objects[obj] then
 		-- setup dummy tables
-		self.objects[obj] = setmt({intersections = {}},objT)
+		self.objects[obj] = setmt({paired = {}},objT)
 		insert(self.xbuffer,setmt({stabs = 0},objT.x0t))
 		insert(self.ybuffer,setmt({stabs = 0},objT.y0t))
 		insert(self.xbuffer,setmt({stabs = 0},objT.x1t))
@@ -40,23 +54,15 @@ local add_mod = function (self,objT)
 	end
 end
 
-local sap_mod = function()
-	local s = sap()
-	s.add   = add_mod
-	return s
-end
+--[[
+===================
+PUBLIC
+===================
+--]]
+local g   = {}
+g.__index = g
 
-local weakValues = {__mode = 'v'}
-local weakKeys   = {__mode = 'k'}
-
-local grid    = {}	
-grid.__index  = function(t,k)
-	t[k] = grid[k]
-	return grid[k]
-end
-
-grid.move = function (self,obj,x0,y0,x1,y1)
-	local w,h = x1-x0,y1-y0
+g.move = function (self,obj,x0,y0,x1,y1)
 	self.objects[obj].x0t.value = x0
 	self.objects[obj].y0t.value = y0
 	self.objects[obj].x1t.value = x1
@@ -68,116 +74,117 @@ grid.move = function (self,obj,x0,y0,x1,y1)
 	local cell_y0 = floor(y0/self.height)
 	local cell_y1 = max(ceil(y1/self.height)-1,cell_y0)
 	
-	local rows = self.objects[obj].rows
+	local columns = self.objects[obj].columns
 	-- delete old references so garbage collector can take 
-	for sap,_ in pairs(rows) do 
-		rows[sap] = nil
+	for sap in pairs(columns) do 
 		sap:delete(obj)
+		columns[sap]        = nil
 		self.activeSAP[sap] = true
 	end
 	
 	-- put object into new cells
 	for x = cell_x0,cell_x1 do
-		local row     = self.cells[x] or setmt({},weakValues)
-		self.cells[x] = row
+		local column  = self.cells[x] or setmt({},weakValues)
+		self.cells[x] = column
 		for y = cell_y0,cell_y1 do
-			local sap = row[y] or sap_mod()
-			row[y]    = sap
-			-- row reference to prevent garbage collecting
-			rows[sap] = row 
-			sap:add(self.objects[obj])
+			local sap = column[y] or sap()
+			column[y] = sap
+			-- column reference to prevent garbage collecting
+			columns[sap]  = column 
+			sap_add(sap,self.objects[obj])
 			self.activeSAP[sap] = true
 		end
 	end	
 end
 
-grid.add = function (self,obj,x0,y0,x1,y1)	
+g.add = function (self,obj,x0,y0,x1,y1)	
 	self.deletebuffer[obj] = nil
 	if not self.objects[obj] then
-		local x0t   = {value = nil,interval = 0,obj = obj}
-		x0t.__index = x0t
-		local y0t   = {value = nil,interval = 0,obj = obj}
-		y0t.__index = y0t
-		local x1t   = {value = nil,interval = 1,obj = obj}
-		x1t.__index = x1t
-		local y1t   = {value = nil,interval = 1,obj = obj}
-		y1t.__index = y1t
-
-		self.objects[obj] = {
-			x0t   = x0t,
-			y0t   = y0t,
-			x1t   = x1t,
-			y1t   = y1t,
-			rows  = {},
+		local x0t   = {value = x0,interval = 0,obj = obj}
+		local y0t   = {value = y0,interval = 0,obj = obj}
+		local x1t   = {value = x1,interval = 1,obj = obj}
+		local y1t   = {value = y1,interval = 1,obj = obj}
+		
+		local objT = {
+			x0t     = x0t,
+			y0t     = y0t,
+			x1t     = x1t,
+			y1t     = y1t,
+			columns = {},
 		}
-		self.objects[obj].__index = self.objects[obj]
+		self.objects[obj] = objT
+		
+		-- for sap's dummy endpoints
+		x0t.__index   = x0t
+		y0t.__index   = y0t
+		x1t.__index   = x1t
+		y1t.__index   = y1t
+		objT.__index  = objT
+		
 	end
 	self:move(obj,x0,y0,x1,y1)
 	return obj
 end
 
-grid.delete = function (self,obj)
-	assert(self.objects[obj],'invalid object')
+g.delete = function (self,obj)
 	self.deletebuffer[obj] = obj
 	
-	for sap,_ in pairs(self.objects[obj].rows) do
+	for sap in pairs(self.objects[obj].columns) do
 		sap:delete(obj)
 		self.activeSAP[sap] = true
 	end
 end
 
-local clearDeleteBuffer = function(self)
-	for obj,_ in pairs(self.deletebuffer) do
-		self.objects[obj]       = nil
-		self.deletebuffer[obj]  = nil
-	end
-end
-
-grid.update = function (self)
-	clearDeleteBuffer(self)
+g.update = function (self)
 	-- only update active cells
 	-- cells count as active when there is an add,delete, or move operation called for each sap
 	for sap in pairs(self.activeSAP) do
 		sap:update()
 		self.activeSAP[sap] = nil
 	end
+	for obj in pairs(self.deletebuffer) do
+		self.objects[obj]       = nil
+		self.deletebuffer[obj]  = nil
+	end
 end
 
-grid.query = function (self,obj)
+g.query = function (self,obj)
 	local list = {}
-	-- check pairs reported in each sap
-	for sap in pairs(self.objects[obj].rows) do
-		for obj2 in pairs(sap.objects[obj].intersections) do
+	-- get pairs reported in each sap
+	for sap in pairs(self.objects[obj].columns) do
+		for obj2 in pairs(sap.objects[obj].paired) do
 			list[obj2] = obj2
 		end
 	end
 	return list
 end
 
-grid.areaQuery = function(self,x0,y0,x1,y1,mode)
-	local set     = {}
+g.areaQuery = function(self,x0,y0,x1,y1,mode)
+	local list    = {}
 	local cell_x0 = floor(x0/self.width)
 	local cell_x1 = max(ceil(x1/self.width)-1,cell_x0)
 	local cell_y0 = floor(y0/self.height)
 	local cell_y1 = max(ceil(y1/self.height)-1,cell_y0)
+	-- for each cell the area touches...
 	for x = cell_x0,cell_x1 do
-		local row = self.cells[x]
+	
+		local column = self.cells[x]
 		for y = cell_y0,cell_y1 do
-			if row and row[y] then
-				set[#set+1] = row[y]:areaQuery(x0,y0,x1,y1,mode)
+		
+			if column and column[y] then
+				-- for each sap in each cell...
+				for obj2 in pairs(column[y]:areaQuery(x0,y0,x1,y1,mode)) do
+					list[obj2] = obj2
+				end
 			end
+			
 		end
+		
 	end
-	-- add queries from other cells
-	for i = 2,#set do
-		for obj in pairs(set[i]) do
-			set[1][obj] = obj
-		end
-	end
-	return set[1]
+	return list
 end
 
-grid.pointQuery = function(self,x,y)
+g.pointQuery = function(self,x,y)
 	local x0    = floor(x/self.width)
 	local y0    = floor(y/self.height)
 	if self.cells[x0] and self.cells[x0][y0] then
@@ -185,7 +192,8 @@ grid.pointQuery = function(self,x,y)
 	end
 end
 
-local raycast = function(self,x,y,dx,dy,isCoroutine)
+g.rayQuery = function(self,x,y,x2,y2,isCoroutine)
+	local dx,dy = x2-x,y2-y
 	local set   = {}
 	local x0,y0 = floor(x/self.width),floor(y/self.height)
 	
@@ -232,16 +240,16 @@ local raycast = function(self,x,y,dx,dy,isCoroutine)
 	
 	-- Use a repeat loop so that the ray checks its starting cell first before moving.
 	repeat
-		local row = self.cells[x0]
-		if row and row[y0] then
+		local column = self.cells[x0]
+		if column and column[y0] then
 			-- if called as an iterator, iterate through all objects in the cell and the next cells
 			-- otherwise, just look for the earliest hit and return
 			if isCoroutine then
-				for obj,hitx,hity in row[y0]:iterRay(x,y,dx,dy) do
+				for obj,hitx,hity in column[y0]:iterRay(x,y,x2,y2) do
 						if not set[obj] then coroutine.yield(obj,hitx,hity); set[obj]=true end
 				end
 			else
-				local obj,hitx,hity = row[y0]:rayQuery(x,y,dx,dy)
+				local obj,hitx,hity = column[y0]:rayQuery(x,y,x2,y2)
 				if obj then return obj,hitx,hity end
 			end
 		end
@@ -258,34 +266,31 @@ local raycast = function(self,x,y,dx,dy,isCoroutine)
 	until smallest > 1
 end
 
-grid.rayQuery = raycast
-
-grid.iterRay = function(self,x,y,dx,dy)
+g.iterRay = function(self,x,y,x2,y2)
 	return coroutine.wrap(function()
-		raycast(self,x,y,dx,dy,true)
+		g.rayQuery(self,x,y,x2,y2,true)
 	end)
 end
 
-grid.draw = function(self)
+g.draw = function(self)
 	for x,t in pairs(self.cells) do
 		for y,sap in pairs(t) do
-				if next(sap.objects) then
-					love.graphics.rectangle('line',x*self.width,y*self.height,self.width,self.height)
-					love.graphics.print(x .. ',' .. y,x*self.width,y*self.height)
-				end
+			love.graphics.rectangle('line',x*self.width,y*self.height,self.width,self.height)
+			love.graphics.print(x .. ',' .. y,x*self.width,y*self.height)
+			love.graphics.print(#sap.xintervals/2,x*self.width,y*self.height+self.height-15)
 		end
 	end
 end
 
-return function(cell_width,cell_height)
-	cell_width = cell_width or 100
-	local instance = {
-		width         = cell_width,
-		height        = cell_height or cell_width,
+g.new = function(cell_width,cell_height)
+	return setmetatable({
+		width         = cell_width or DEFAULT_CELL_WIDTH,
+		height        = cell_height or DEFAULT_CELL_HEIGHT,
 		cells         = setmt({},weakValues),
 		objects       = {},
 		deletebuffer  = {},
-		activeSAP     = setmetatable({},weakKeys)
-	}
-	return setmt(instance,grid)
+		activeSAP     = setmetatable({},weakKeys),
+	},g)
 end
+
+return setmetatable(g,{__call = function(g,...) return g.new(...) end})
