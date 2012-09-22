@@ -13,22 +13,6 @@ p.unset = function(self,a1,a2)
 	self[a2][a1] = nil
 end
 
-p.get = function(self,a1,a2)
-	return self[a1][a2]
-end
-
-p.getAll = function(self,a)
-	local list = {}
-	for a2,v in self:iterate(a) do
-		list[a2] = v
-	end
-	return list
-end
-
-p.iterate = function(self,a)
-	return next,self[a]
-end
-
 p.remove = function(self,a)
 	for a2 in self:iterate(a) do
 		self[a2][a] = nil
