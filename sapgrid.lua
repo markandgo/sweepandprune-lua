@@ -184,7 +184,6 @@ g.areaQuery = function(self,x0,y0,x1,y1,mode)
 	return list
 end
 
--- DDA algorithm
 g.pointQuery = function(self,x,y)
 	local x0    = floor(x/self.width)
 	local y0    = floor(y/self.height)
@@ -193,6 +192,7 @@ g.pointQuery = function(self,x,y)
 	end
 end
 
+-- DDA algorithm
 g.rayQuery = function(self,x,y,x2,y2,isCoroutine)
 	local dx,dy = x2-x,y2-y
 	local set   = {}
