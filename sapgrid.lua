@@ -153,7 +153,7 @@ g.query = function (self,obj)
 	local list = {}
 	-- get pairs reported in each sap
 	for sap in pairs(self.objects[obj].columns) do
-		for obj2 in sap.paired:iterate(obj) do
+		for obj2 in pairs(sap.paired[obj]) do
 			list[obj2] = obj2
 		end
 	end
