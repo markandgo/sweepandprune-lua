@@ -45,31 +45,6 @@ for otherID,otherID in pairs(list) do
 end
 ````
 
----
-Query an area and return a list of all AABB's that overlaps with the area. If `enclosed` is passed as `true`, then return a list of enclosed boxes only.
-
-`list = sapA:areaQuery(x0,y0,x1,y1[,enclosed])`
-
----
-Query a point and return a list of all AABB's that contains the point.
-
-`list = sapA:pointQuery(x0,y0,x1,y1)`
-
----
-Shoot a ray from point `x0,y0` to `x1,y1` and return the first box that is hit. Also return its point of contact.
-The `isCoroutine` is an interal parameter.
-
-`obj,hitx,hity = sapA:rayQuery(x0,y0,x1,y1[,isCoroutine])`
-
----
-Return an iterator that returns all boxes and its contact point (in order) in its path.
-
-````lua
-for obj,hitx,hity in sapA:iterRay(x0,y0,x1,y1) do
-	...
-end
-````
-
 ## Example:
 
 **See main.lua for more examples...**
