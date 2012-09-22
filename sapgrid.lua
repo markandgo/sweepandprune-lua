@@ -45,8 +45,9 @@ local sap_add = function (self,objT)
 	local obj = objT.x0t.obj
 	self.deletebuffer[obj] = nil
 	if not self.objects[obj] then
+		self.paired[obj]  = {}
 		-- setup proxy tables
-		self.objects[obj] = setmt({paired = {}},objT)
+		self.objects[obj] = setmt({},objT)
 		insert(self.xbuffer,setmt({stabs = 0},objT.x0t))
 		insert(self.ybuffer,setmt({stabs = 0},objT.y0t))
 		insert(self.xbuffer,setmt({stabs = 0},objT.x1t))
@@ -152,7 +153,7 @@ g.query = function (self,obj)
 	local list = {}
 	-- get pairs reported in each sap
 	for sap in pairs(self.objects[obj].columns) do
-		for obj2 in pairs(sap.objects[obj].paired) do
+		for obj2 in sap.paired:iterate(obj) do
 			list[obj2] = obj2
 		end
 	end

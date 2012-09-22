@@ -31,7 +31,7 @@ end
 
 p.remove = function(self,a)
 	for a2 in self:iterate(a) do
-		self[a][a2] = nil
+		self[a2][a] = nil
 	end
 	self[a] = nil
 end

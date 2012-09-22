@@ -23,7 +23,7 @@ local remove  = table.remove
 local sort    = table.sort
 local pairs   = pairs
 local min     = function(a,b) return a < b and a or b end
-
+local pair    = require 'pair'
 --[[
 ===================
 PRIVATE
@@ -50,8 +50,8 @@ local setPair = function (sap,obj1,obj2)
 	local by2 = sap.objects[obj2].y1t.value
 
 	if ax1 <= bx2 and ax2 >= bx1 and ay1 <= by2 and ay2 >= by1 then
-		sap.objects[obj1].paired[obj2] = obj2
-		sap.objects[obj2].paired[obj1] = obj1
+		sap.paired[obj1][obj2] = obj2
+		sap.paired[obj2][obj1] = obj1
 	end
 end
 
@@ -98,8 +98,8 @@ local swapCallback = function(sap,endpoint2,endpoint)
 		
 	-- [0 ep2 [0  1] ep1 1] pre swap
 	elseif endpoint.interval == 1 and endpoint2.interval == 0 then
-		sap.objects[obj1].paired[obj2] = nil
-		sap.objects[obj2].paired[obj1] = nil
+		sap.paired[obj1][obj2] = nil
+		sap.paired[obj2][obj1] = nil
 		
 		endpoint2.stabs = endpoint2.stabs - 1
 		endpoint.stabs = endpoint.stabs - 1
@@ -272,8 +272,9 @@ s.add = function (self,obj,x0,y0,x1,y1)
 			y0t     = y0t,
 			x1t     = x1t,
 			y1t     = y1t,
-			paired  = {},
 		}
+		
+		self.paired[obj] = {}
 		
 		insert(self.xbuffer,x0t) -- batch insertion buffer
 		insert(self.ybuffer,y0t)
@@ -291,9 +292,7 @@ end
 
 s._delCallback = function(self)
 	for obj in pairs(self.deletebuffer) do
-		for obj2 in pairs(self.objects[obj].paired) do
-			self.objects[obj2].paired[obj] = nil
-		end
+		self.paired:remove(obj)
 	
 		self.objects[obj]       = nil
 		self.deletebuffer[obj]  = nil
@@ -309,7 +308,7 @@ s.update = function (self)
 end
 
 s.query = function (self,obj)
-	return self.objects[obj].paired
+	return self.paired[obj]
 end
 
 s.areaQuery = function(self,x0,y0,x1,y1,enclosed)
@@ -469,6 +468,7 @@ s.new = function()
 			deletebuffer = {},
 			xbuffer      = {},
 			ybuffer      = {},
+			paired       = pair()
 		},s)
 end
 
