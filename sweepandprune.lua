@@ -309,11 +309,7 @@ s.update = function (self)
 end
 
 s.query = function (self,obj)
-	local list = {}
-	for obj2 in pairs(self.objects[obj].paired) do
-		list[obj2] = obj2
-	end
-	return list
+	return self.objects[obj].paired
 end
 
 s.areaQuery = function(self,x0,y0,x1,y1,enclosed)
