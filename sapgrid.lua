@@ -40,12 +40,12 @@ local weakKeys   = {__mode = 'k'}
 local DEFAULT_CELL_WIDTH  = 100
 local DEFAULT_CELL_HEIGHT = 100
 
--- modification to sap so it works with the grid
+-- change behavior of adding boxes to each sap
 local sap_add = function (self,objT)
 	local obj = objT.x0t.obj
 	self.deletebuffer[obj] = nil
 	if not self.objects[obj] then
-		-- setup dummy tables
+		-- setup proxy tables
 		self.objects[obj] = setmt({paired = {}},objT)
 		insert(self.xbuffer,setmt({stabs = 0},objT.x0t))
 		insert(self.ybuffer,setmt({stabs = 0},objT.y0t))
@@ -69,15 +69,15 @@ g.move = function (self,obj,x0,y0,x1,y1)
 	self.objects[obj].y1t.value = y1
 	-- rasterize to grid coordinates
 	local cell_x0 = floor(x0/self.width)
-	-- use max for point x1 = x0 cases
 	local cell_x1 = max(ceil(x1/self.width)-1,cell_x0)
 	local cell_y0 = floor(y0/self.height)
 	local cell_y1 = max(ceil(y1/self.height)-1,cell_y0)
 	
 	local columns = self.objects[obj].columns
-	-- delete old references so garbage collector can take 
+	-- delete object from old cells
 	for sap in pairs(columns) do 
 		sap:delete(obj)
+		-- remove sap reference for garbage collecting
 		columns[sap]        = nil
 		self.activeSAP[sap] = true
 	end
@@ -89,7 +89,7 @@ g.move = function (self,obj,x0,y0,x1,y1)
 		for y = cell_y0,cell_y1 do
 			local sap = column[y] or sap()
 			column[y] = sap
-			-- column reference to prevent garbage collecting
+			-- column/sap reference to prevent garbage collecting
 			columns[sap]  = column 
 			sap_add(sap,self.objects[obj])
 			self.activeSAP[sap] = true
@@ -114,7 +114,7 @@ g.add = function (self,obj,x0,y0,x1,y1)
 		}
 		self.objects[obj] = objT
 		
-		-- for sap's dummy endpoints
+		-- for sap's proxy tables
 		x0t.__index   = x0t
 		y0t.__index   = y0t
 		x1t.__index   = x1t
@@ -137,7 +137,7 @@ end
 
 g.update = function (self)
 	-- only update active cells
-	-- cells count as active when there is an add,delete, or move operation called for each sap
+	-- A cell is active when there is an add,delete, or move operation called for each sap
 	for sap in pairs(self.activeSAP) do
 		sap:update()
 		self.activeSAP[sap] = nil
@@ -184,6 +184,7 @@ g.areaQuery = function(self,x0,y0,x1,y1,mode)
 	return list
 end
 
+-- DDA algorithm
 g.pointQuery = function(self,x,y)
 	local x0    = floor(x/self.width)
 	local y0    = floor(y/self.height)
@@ -198,10 +199,6 @@ g.rayQuery = function(self,x,y,x2,y2,isCoroutine)
 	local x0,y0 = floor(x/self.width),floor(y/self.height)
 	
 	local dxRatio,dyRatio,xDelta,yDelta,xStep,yStep,smallest,xStart,yStart
-	-- visualization of sides that we can check: [0 1]
-	-- if we're moving to the right, +1 to cell-x to
-	-- check the right side first as it's > our starting point
-	-- positive steps when moving right, neg steps when moving left
 	if dx > 0 then 
 		xStep   = 1 
 		xStart  = 1 
@@ -217,10 +214,7 @@ g.rayQuery = function(self,x,y,x2,y2,isCoroutine)
 		yStart  = 0
 	end
 	
-	-- dxRatio: (x0*width-x)/dx precalculations
-	-- xDelta is the ratio of the ray's width to reach the next vertical line on the x-axis
-	-- always take the shortest ratio to reach the nearest line on the grid
-	-- zero hack
+	-- dx and dy zero hack
 	if dx == 0 then
 		dxRatio = math.huge
 		xDelta  = 0
@@ -238,11 +232,11 @@ g.rayQuery = function(self,x,y,x2,y2,isCoroutine)
 		yDelta    = a*yStep
 	end
 	
-	-- Use a repeat loop so that the ray checks its starting cell first before moving.
+	-- Use a repeat loop so that the ray checks its starting cell
 	repeat
 		local column = self.cells[x0]
 		if column and column[y0] then
-			-- if called as an iterator, iterate through all objects in the cell and the next cells
+			-- if called as an iterator, iterate through all objects that overlaps the ray
 			-- otherwise, just look for the earliest hit and return
 			if isCoroutine then
 				for obj,hitx,hity in column[y0]:iterRay(x,y,x2,y2) do

@@ -55,7 +55,7 @@ local setPair = function (sap,obj1,obj2)
 	end
 end
 
--- forward insertion sort collects objects into setMaintain
+-- insertion sort collects objects into setMaintain
 -- if endpoint is an upperbound, then remove object from setMaintain 
 -- and check its with objects in setsCollide
 local processSets = function (sap,endpoint,setMaintain,setsCollide)
@@ -73,8 +73,7 @@ local processSets = function (sap,endpoint,setMaintain,setsCollide)
 	end
 end
 
--- stab number = number of intervals to the left of index i that contains the value at i
--- stab number = number of lower bound endpoints - number of upper bound endpoints to the left of i
+-- stab number = number of lower bound endpoints - number of upper bound endpoints to the left of list[i]
 local setStabs = function(list,i) 
 	if list[i-1] then
 		local leftstab = list[i-1].stabs
@@ -129,7 +128,6 @@ local SweepAndPrune = function (sap,axis,intervalT,bufferT,deletebuffer)
 	
 	local i = 1
 
-	-- update stabbing number when there are insertion,deletion, and swap events
 	while intervalT[i] do
 		local endpoint    = intervalT[i]
 		local newEndpoint = bufferT[1]
@@ -150,8 +148,8 @@ local SweepAndPrune = function (sap,axis,intervalT,bufferT,deletebuffer)
 			
 			i = i + 1
 		
-		-- insertion sort block
 		else
+			-- insertion sort block
 			if checkStab then setStabs(intervalT,i) end
 		
 			if bufferT[1] and axis == 'y' then
@@ -224,13 +222,12 @@ local binsearch         = function( t,value)
 	return start,last
 end
 
--- iterate backward in the list until stabbing number = 0, return stabbed endpoint's object
+-- iterate backward in the list and return stabbed endpoints
 local iterStabs = coroutine.wrap(function(state)
 	while true do
 		local t,i   = state[1],state[2]
 		local skip  = {}
 		local stabs = t[i] and t[i].stabs or 0
-		-- iterate backward and return stabbed endpoints
 		while stabs > 0 do
 			i = i - 1
 			local ep,obj = t[i],t[i].obj
@@ -320,14 +317,16 @@ s.query = function (self,obj)
 end
 
 s.areaQuery = function(self,x0,y0,x1,y1,enclosed)
-	local score     = enclosed and 3 or 0
+	-- endpoint's score outside of area = 1
+	-- endpoint's score inside of area = 2
+	local minScore     = enclosed and 3 or 0
 	local xset,yset = {},{}
 	local xt,yt = self.xintervals,self.yintervals
-	-- find leftmost index > x and y
+	-- find leftmost index > x0 and y0
 	local _,xi = binsearch(xt,x0)
 	local _,yi = binsearch(yt,y0)
 	if not enclosed then
-		-- iterate backward and collect objects that contains the area
+		-- iterate backward and collect objects that overlaps the area
 		for i,obj in iterateStabs(xt,xi) do
 			xset[obj] = xset[obj] and xset[obj]+1 or 1
 		end
@@ -335,7 +334,7 @@ s.areaQuery = function(self,x0,y0,x1,y1,enclosed)
 			yset[obj] = yset[obj] and yset[obj]+1 or 1
 		end
 	end
-	-- iterate from x0 to x1,y0 to y1 and collect boxes in the interval
+	-- iterate within the area's intervals and collect overlapping boxes
 	while xt[xi] and xt[xi].value <= x1 do
 		local obj = xt[xi].obj
 		xset[obj] = xset[obj] and xset[obj]+2 or 2
@@ -346,11 +345,8 @@ s.areaQuery = function(self,x0,y0,x1,y1,enclosed)
 		yset[obj] = yset[obj] and yset[obj]+2 or 2
 		yi = yi + 1
 	end
-	-- when score > 0 for an object on all axes, it's overlapping the query
-	-- 2 points for each endpoint in the interval --> 4 points mean the box intervals are enclosed on that axis
-	-- when score > 3 for an object on all axes, it's enclosed by the query
 	for obj in pairs(xset) do
-		if yset[obj] and xset[obj] > score and yset[obj] > score then
+		if yset[obj] and xset[obj] > minScore and yset[obj] > minScore then
 			xset[obj] = obj
 		else
 			xset[obj] = nil
@@ -391,32 +387,29 @@ s.rayQuery = function(self,x,y,x2,y2,isCoroutine)
 		xStep    = 1
 		xsidehit = 0
 	else
-		-- start at the left endpoint (<= x) when ray points left
+		-- start at the left index (<= x) when ray points left
 		xi       = xi - 1
 		xStep    = -1
 		xsidehit = 1
 	end
-	-- moving down(+) check top bound hit
 	if dy > 0 then 
 		yStep    = 1
 		ysidehit = 0
 	else
-		-- start at the top endpoint (<= y) when ray points up
 		yi       = yi - 1
 		yStep    = -1
 		ysidehit = 1
 	end
 	
-	-- set to infinity if value doesn't exist
+	-- set to infinity if key-value doesn't exist
 	local xv = xt[xi] and xt[xi].value or xStep*math.huge
 	local yv = yt[yi] and yt[yi].value or yStep*math.huge
-	-- set to infinity when delta's are 0
+	-- set to infinity when diving by zero
 	local dxRatio   = dx == 0 and math.huge or (xv - x)/dx
 	local dyRatio   = dy == 0 and math.huge or (yv - y)/dy
 	local smallest  = min(dxRatio,dyRatio)
 	
-	-- Iterate backward and collect intervals that contains the starting point.
-	-- Useful for colliding internally with a box
+	-- Collect stabbed objects. Useful for colliding internally with a box
 	for i,obj in iterateStabs(xt,xi+xsidehit) do
 		multiset[obj] = 1
 	end
@@ -429,11 +422,10 @@ s.rayQuery = function(self,x,y,x2,y2,isCoroutine)
 	end
 	
 	-- voxel traversal loop
-	-- the shortest distance to the next line is used
 	while smallest <= 1 do
 		-- if the the next line is vertical...
 		if smallest == dxRatio then
-			-- if the line is an outside bound...
+			-- if the ray is hitting a box from the outside...
 			if xt[xi].interval == xsidehit then
 				multiset[xt[xi].obj] = multiset[xt[xi].obj] and multiset[xt[xi].obj] + 1 or 1
 			else
@@ -462,7 +454,7 @@ s.rayQuery = function(self,x,y,x2,y2,isCoroutine)
 			yv      = yt[yi] and yt[yi].value or yStep*math.huge
 			dyRatio = (yv - y)/dy
 		end
-		-- calculate for next loop
+		-- take the shortest path to the next voxel
 		smallest        = min(dxRatio,dyRatio)
 	end
 end
