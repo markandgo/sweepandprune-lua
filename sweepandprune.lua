@@ -23,7 +23,6 @@ local remove  = table.remove
 local sort    = table.sort
 local pairs   = pairs
 local min     = function(a,b) return a < b and a or b end
-local pair    = require 'pair'
 --[[
 ===================
 PRIVATE
@@ -243,8 +242,10 @@ end
 
 s._delCallback = function(self)
 	for obj in pairs(self.deletebuffer) do
-		self.paired:remove(obj)
-	
+		for obj2 in pairs(self.paired[obj]) do
+			self.paired[obj2][obj] = nil
+		end
+		self.paired[obj]        = nil
 		self.objects[obj]       = nil
 		self.deletebuffer[obj]  = nil
 	end	
@@ -270,7 +271,7 @@ s.new = function()
 			deletebuffer = {},
 			xbuffer      = {},
 			ybuffer      = {},
-			paired       = pair()
+			paired       = {},
 		},s)
 end
 
