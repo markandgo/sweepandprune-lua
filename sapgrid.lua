@@ -47,11 +47,11 @@ local sap_add = function (self,objT)
 	if not self.objects[obj] then
 		self.paired[obj]  = {}
 		-- setup proxy tables
-		self.objects[obj] = setmt({},objT)
-		insert(self.xbuffer,setmt({stabs = 0},objT.x0t))
-		insert(self.ybuffer,setmt({stabs = 0},objT.y0t))
-		insert(self.xbuffer,setmt({stabs = 0},objT.x1t))
-		insert(self.ybuffer,setmt({stabs = 0},objT.y1t))
+		self.objects[obj] = objT
+		insert(self.xbuffer,objT.x0t)
+		insert(self.ybuffer,objT.y0t)
+		insert(self.xbuffer,objT.x1t)
+		insert(self.ybuffer,objT.y1t)
 	end
 end
 
@@ -158,113 +158,6 @@ g.query = function (self,obj)
 		end
 	end
 	return list
-end
-
-g.areaQuery = function(self,x0,y0,x1,y1,mode)
-	local list    = {}
-	local cell_x0 = floor(x0/self.width)
-	local cell_x1 = max(ceil(x1/self.width)-1,cell_x0)
-	local cell_y0 = floor(y0/self.height)
-	local cell_y1 = max(ceil(y1/self.height)-1,cell_y0)
-	-- for each cell the area touches...
-	for x = cell_x0,cell_x1 do
-	
-		local column = self.cells[x]
-		for y = cell_y0,cell_y1 do
-		
-			if column and column[y] then
-				-- for each sap in each cell...
-				for obj2 in pairs(column[y]:areaQuery(x0,y0,x1,y1,mode)) do
-					list[obj2] = obj2
-				end
-			end
-			
-		end
-		
-	end
-	return list
-end
-
-g.pointQuery = function(self,x,y)
-	local x0    = floor(x/self.width)
-	local y0    = floor(y/self.height)
-	if self.cells[x0] and self.cells[x0][y0] then
-		return self.cells[x0][y0]:pointQuery(x,y)
-	end
-end
-
--- DDA algorithm
-g.rayQuery = function(self,x,y,x2,y2,isCoroutine)
-	local dx,dy = x2-x,y2-y
-	local set   = {}
-	local x0,y0 = floor(x/self.width),floor(y/self.height)
-	
-	local dxRatio,dyRatio,xDelta,yDelta,xStep,yStep,smallest,xStart,yStart
-	if dx > 0 then 
-		xStep   = 1 
-		xStart  = 1 
-	else 
-		xStep   = -1 
-		xStart  = 0
-	end
-	if dy > 0 then 
-		yStep   = 1 
-		yStart  = 1
-	else 
-		yStep   = -1 
-		yStart  = 0
-	end
-	
-	-- dx and dy zero hack
-	if dx == 0 then
-		dxRatio = math.huge
-		xDelta  = 0
-	else
-		local a,b = self.width/dx,x/dx
-		dxRatio   = a*(x0+xStart)-b
-		xDelta    = a*xStep
-	end
-	if dy == 0 then
-		dyRatio = math.huge
-		yDelta  = 0
-	else
-		local a,b = self.height/dy,y/dy
-		dyRatio   = a*(y0+yStart)-b
-		yDelta    = a*yStep
-	end
-	
-	-- Use a repeat loop so that the ray checks its starting cell
-	repeat
-		local column = self.cells[x0]
-		if column and column[y0] then
-			-- if called as an iterator, iterate through all objects that overlaps the ray
-			-- otherwise, just look for the earliest hit and return
-			if isCoroutine then
-				for obj,hitx,hity in column[y0]:iterRay(x,y,x2,y2) do
-						if not set[obj] then coroutine.yield(obj,hitx,hity); set[obj]=true end
-				end
-			else
-				local obj,hitx,hity = column[y0]:rayQuery(x,y,x2,y2)
-				if obj then return obj,hitx,hity end
-			end
-		end
-		
-		if dxRatio < dyRatio then
-			smallest  = dxRatio
-			dxRatio   = dxRatio + xDelta
-			x0        = x0 + xStep
-		else
-			smallest  = dyRatio
-			dyRatio   = dyRatio + yDelta
-			y0        = y0 + yStep
-		end
-	until smallest > 1
-end
-
-g.iterRay = function(self,x,y,x2,y2)
-	return coroutine.wrap(function()
-		g.rayQuery(self,x,y,x2,y2,true)
-	end)
 end
 
 g.draw = function(self)
