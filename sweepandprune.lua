@@ -472,4 +472,4 @@ s.new = function()
 		},s)
 end
 
-return setmetatable(s,{__call = function(s) return s.new() end})
+return setmetatable(s,{__call = s.new})

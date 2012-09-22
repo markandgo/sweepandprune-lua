@@ -276,7 +276,7 @@ g.draw = function(self)
 	end
 end
 
-g.new = function(cell_width,cell_height)
+g.new = function(self,cell_width,cell_height)
 	return setmetatable({
 		width         = cell_width or DEFAULT_CELL_WIDTH,
 		height        = cell_height or DEFAULT_CELL_HEIGHT,
@@ -287,4 +287,4 @@ g.new = function(cell_width,cell_height)
 	},g)
 end
 
-return setmetatable(g,{__call = function(g,...) return g.new(...) end})
+return setmetatable(g,{__call = g.new})
