@@ -151,49 +151,6 @@ local SweepAndPrune = function (sap,axis,intervalT,bufferT,deletebuffer)
 	end
 end
 
--- http://lua-userlocal org/wiki/BinarySearch
--- return left index and right index of v where li < v < ri
-local default_fcompval  = function( e ) return e and e.value end
-local fcomp             = function( a,b ) return a < b end
-local binsearch         = function( t,value)
-	-- Initialise functions
-	local fcompval = default_fcompval
-	--  Initialise numbers
-	local iStart,iEnd,iMid 	= 1,#t,0
-	-- assume 0 = -inf,#t+1 = inf
-	local start,last = 0,#t+1
-	-- Binary Search
-	while iStart <= iEnd do
-		-- calculate middle
-		iMid = math.floor( (iStart+iEnd)/2 )
-		-- get compare value
-		local value2 = fcompval( t[iMid] )
-		-- get all values that match
-		if value == value2 then
-			start,last = iMid,iMid
-			local num = iMid - 1
-			while value == fcompval( t[num] ) do
-				start		= num
-				num 		= num - 1
-			end
-			num = iMid + 1
-			while value == fcompval( t[num] ) do
-				last	= num
-				num 	= num + 1
-			end
-			return start-1,last+1
-		-- keep searching
-		elseif fcomp( value,value2 ) then
-			last = iMid
-			iEnd = iMid - 1
-		else
-			start	 = iMid
-			iStart = iMid + 1
-		end
-	end
-	return start,last
-end
-
 --[[
 ===================
 PUBLIC
