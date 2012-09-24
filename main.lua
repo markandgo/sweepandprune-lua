@@ -1,9 +1,5 @@
 --[[
 Collision detection between 2 boxes
-Red when colliding, white otherwise.
-Red when ray collides with a box
-Red when a point is contained by a box
-Yellow when area query detects a box
 ]]
 
 function love.load()
