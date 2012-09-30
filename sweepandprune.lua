@@ -217,7 +217,11 @@ s.update = function (self)
 end
 
 s.query = function (self,obj)
-	return self.paired[obj]
+	local t = {}
+	for obj2 in pairs(self.paired[obj]) do
+		t[obj2]=obj2
+	end
+	return t
 end
 
 s.new = function()
