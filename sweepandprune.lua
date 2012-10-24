@@ -22,7 +22,6 @@ local insert  = table.insert
 local remove  = table.remove
 local sort    = table.sort
 local pairs   = pairs
-local min     = function(a,b) return a < b and a or b end
 --[[
 ===================
 PRIVATE
