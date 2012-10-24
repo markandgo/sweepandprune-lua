@@ -9,8 +9,6 @@ Load the SAP library.
 ---
 Create a new SAP instance. Your SAP instance is your "world" where you place your axis aligned bounding boxes (AABB).
 
-where `otherID's` are boxes paired with `id's`
-
 `sapA = sap()`
 
 ## Functions
