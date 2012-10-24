@@ -42,8 +42,8 @@ local DEFAULT_CELL_HEIGHT = 100
 
 -- change behavior of adding boxes to each sap
 local sap_add = function (self,objT)
-	local obj = objT.x0t.obj
-	self.deletebuffer[obj] = nil
+	local obj               = objT.x0t.obj
+	self.deletebuffer[obj]  = nil
 	if not self.objects[obj] then
 		self.paired[obj]  = {}
 		-- setup proxy tables
@@ -53,6 +53,14 @@ local sap_add = function (self,objT)
 		insert(self.xbuffer,setmt({stabs = 0},objT.x1t))
 		insert(self.ybuffer,setmt({stabs = 0},objT.y1t))
 	end
+end
+
+local toGridCoordinates = function(self,x0,y0,x1,y1)
+	local gx0 = floor(x0/self.width)
+	local gy0 = floor(y0/self.height)
+	local gx1 = max(ceil(x1/self.width)-1,gx0)
+	local gy1 = max(ceil(y1/self.height)-1,gy0)
+	return gx0,gy0,gx1,gy1
 end
 
 --[[
@@ -69,10 +77,7 @@ g.move = function (self,obj,x0,y0,x1,y1)
 	self.objects[obj].x1t.value = x1
 	self.objects[obj].y1t.value = y1
 	-- rasterize to grid coordinates
-	local cell_x0 = floor(x0/self.width)
-	local cell_x1 = max(ceil(x1/self.width)-1,cell_x0)
-	local cell_y0 = floor(y0/self.height)
-	local cell_y1 = max(ceil(y1/self.height)-1,cell_y0)
+	local gx0,gy0,gx1,gy1 = toGridCoordinates(self,x0,y0,x1,y1)
 	
 	local columns = self.objects[obj].columns
 	-- delete object from old cells
@@ -84,10 +89,10 @@ g.move = function (self,obj,x0,y0,x1,y1)
 	end
 	
 	-- put object into new cells
-	for x = cell_x0,cell_x1 do
+	for x = gx0,gx1 do
 		local column  = self.cells[x] or setmt({},weakValues)
 		self.cells[x] = column
-		for y = cell_y0,cell_y1 do
+		for y = gy0,gy1 do
 			local sap = column[y] or sap()
 			column[y] = sap
 			-- column/sap reference to prevent garbage collecting
@@ -161,16 +166,13 @@ g.query = function (self,obj)
 end
 
 g.areaQuery = function(self,x0,y0,x1,y1,mode)
-	local list    = {}
-	local cell_x0 = floor(x0/self.width)
-	local cell_x1 = max(ceil(x1/self.width)-1,cell_x0)
-	local cell_y0 = floor(y0/self.height)
-	local cell_y1 = max(ceil(y1/self.height)-1,cell_y0)
+	local list            = {}
+	local gx0,gy0,gx1,gy1 = toGridCoordinates(self,x0,y0,x1,y1)
 	-- for each cell the area touches...
-	for x = cell_x0,cell_x1 do
+	for x = gx0,gx1 do
 	
 		local column = self.cells[x]
-		for y = cell_y0,cell_y1 do
+		for y = gy0,gy1 do
 		
 			if column and column[y] then
 				-- for each sap in each cell...
@@ -186,18 +188,18 @@ g.areaQuery = function(self,x0,y0,x1,y1,mode)
 end
 
 g.pointQuery = function(self,x,y)
-	local x0    = floor(x/self.width)
-	local y0    = floor(y/self.height)
-	if self.cells[x0] and self.cells[x0][y0] then
-		return self.cells[x0][y0]:pointQuery(x,y)
+	local gx0    = floor(x/self.width)
+	local gy0    = floor(y/self.height)
+	if self.cells[gx0] and self.cells[gx0][gy0] then
+		return self.cells[gx0][gy0]:pointQuery(x,y)
 	end
 end
 
 -- DDA algorithm
 g.rayQuery = function(self,x,y,x2,y2,isCoroutine)
-	local dx,dy = x2-x,y2-y
-	local set   = {}
-	local x0,y0 = floor(x/self.width),floor(y/self.height)
+	local dx,dy   = x2-x,y2-y
+	local set     = {}
+	local gx0,gy0 = floor(x/self.width),floor(y/self.height)
 	
 	local dxRatio,dyRatio,xDelta,yDelta,xStep,yStep,smallest,xStart,yStart
 	if dx > 0 then 
@@ -221,7 +223,7 @@ g.rayQuery = function(self,x,y,x2,y2,isCoroutine)
 		xDelta  = 0
 	else
 		local a,b = self.width/dx,x/dx
-		dxRatio   = a*(x0+xStart)-b
+		dxRatio   = a*(gx0+xStart)-b
 		xDelta    = a*xStep
 	end
 	if dy == 0 then
@@ -229,22 +231,22 @@ g.rayQuery = function(self,x,y,x2,y2,isCoroutine)
 		yDelta  = 0
 	else
 		local a,b = self.height/dy,y/dy
-		dyRatio   = a*(y0+yStart)-b
+		dyRatio   = a*(gy0+yStart)-b
 		yDelta    = a*yStep
 	end
 	
 	-- Use a repeat loop so that the ray checks its starting cell
 	repeat
-		local column = self.cells[x0]
-		if column and column[y0] then
+		local column = self.cells[gx0]
+		if column and column[gy0] then
 			-- if called as an iterator, iterate through all objects that overlaps the ray
 			-- otherwise, just look for the earliest hit and return
 			if isCoroutine then
-				for obj,hitx,hity in column[y0]:iterRay(x,y,x2,y2) do
+				for obj,hitx,hity in column[gy0]:iterRay(x,y,x2,y2) do
 						if not set[obj] then coroutine.yield(obj,hitx,hity); set[obj]=true end
 				end
 			else
-				local obj,hitx,hity = column[y0]:rayQuery(x,y,x2,y2)
+				local obj,hitx,hity = column[gy0]:rayQuery(x,y,x2,y2)
 				if obj then return obj,hitx,hity end
 			end
 		end
@@ -252,11 +254,11 @@ g.rayQuery = function(self,x,y,x2,y2,isCoroutine)
 		if dxRatio < dyRatio then
 			smallest  = dxRatio
 			dxRatio   = dxRatio + xDelta
-			x0        = x0 + xStep
+			gx0        = gx0 + xStep
 		else
 			smallest  = dyRatio
 			dyRatio   = dyRatio + yDelta
-			y0        = y0 + yStep
+			gy0        = gy0 + yStep
 		end
 	until smallest > 1
 end
