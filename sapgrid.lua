@@ -25,10 +25,10 @@ INITIAL STUFF
 ===================
 --]]
 
-local insert 	= table.insert
-local floor		= math.floor
-local ceil		= math.ceil
-local max			= function(a,b) return a > b and a or b end
+local insert  = table.insert
+local floor   = math.floor
+local ceil    = math.ceil
+local max     = function(a,b) return a > b and a or b end
 local setmt   = setmetatable
 
 local path    = (...):match('^.*[%.%/]') or ''
