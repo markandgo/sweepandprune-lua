@@ -9,8 +9,6 @@ Load the SAP library.
 ---
 Create a new SAP instance. Your SAP instance is your "world" where you place your axis aligned bounding boxes (AABB).
 
-where `otherID's` are boxes paired with `id's`
-
 `sapA = sap()`
 
 ## Functions
@@ -56,8 +54,7 @@ Query a point and return a list of all AABB's that contains the point.
 `list = sapA:pointQuery(x0,y0,x1,y1)`
 
 ---
-Shoot a ray from point `x0,y0` to `x1,y1` and return the first box that is hit. Also return its point of contact.
-The `isCoroutine` is an interal parameter.
+Shoot a ray from point `x0,y0` to `x1,y1` and return the first box that is hit. Also return its point of contact. The ray can collide internally with a box. The `isCoroutine` parameter is an internal parameter; you need not worry about it.
 
 `obj,hitx,hity = sapA:rayQuery(x0,y0,x1,y1[,isCoroutine])`
 
