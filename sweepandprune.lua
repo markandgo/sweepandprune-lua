@@ -243,6 +243,28 @@ local iterateStabs = function(t,i)
 	return iterStabs,{t,i}
 end
 
+local addStabsToSet = function(intervalT,index,set)
+	for i,obj in iterateStabs(intervalT,index) do
+		set[obj] = set[obj] and set[obj]+1 or 1
+	end
+end
+
+local initRayData = function(cI,cF,iT)
+	local step,sidehit
+	local _,i = binsearch(iT,cI)
+	local delta    = cF - cI
+	if delta > 0 then
+		step,sidehit   = 1,0
+	else
+		i,step,sidehit = i-1,-1,1
+	end
+	-- set to infinity if key-value doesn't exist
+	local indexV  = iT[i] and iT[i].value or step*math.huge
+	-- set to infinity when diving by zero
+	local dRatio  = delta == 0 and math.huge or (indexV - cI)/delta
+	return delta,i,indexV,step,sidehit,dRatio
+end
+
 --[[
 ===================
 PUBLIC
@@ -328,12 +350,8 @@ s.areaQuery = function(self,x0,y0,x1,y1,enclosed)
 	local _,yi = binsearch(yt,y0)
 	if not enclosed then
 		-- iterate backward and collect objects that overlaps the area
-		for i,obj in iterateStabs(xt,xi) do
-			xset[obj] = xset[obj] and xset[obj]+1 or 1
-		end
-		for i,obj in iterateStabs(yt,yi) do
-			yset[obj] = yset[obj] and yset[obj]+1 or 1
-		end
+		addStabsToSet(xt,xi,xset)
+		addStabsToSet(yt,yi,yset)
 	end
 	-- iterate within the area's intervals and collect overlapping boxes
 	while xt[xi] and xt[xi].value <= x1 do
@@ -361,9 +379,7 @@ s.pointQuery = function(self,x,y)
 	local xt,yt = self.xintervals,self.yintervals
 	local _,xi  = binsearch(xt,x)
 	local _,yi  = binsearch(yt,y)
-	for i,obj in iterateStabs(xt,xi) do
-		xset[obj] = obj
-	end
+	addStabsToSet(xt,xi,xset)
 	for i,obj in iterateStabs(yt,yi) do
 		if xset[obj] then yset[obj] = obj end
 	end
@@ -373,47 +389,18 @@ end
 
 -- Raycast through a voxel grid
 s.rayQuery = function(self,x,y,x2,y2,isCoroutine)
-	local dx,dy     = x2-x,y2-y
 	local multiset  = {}
 	local xt,yt     = self.xintervals,self.yintervals
-	-- find left most index > x and y
-	local xi,yi = 1,1
-	local _,xi  = binsearch(xt,x)
-	local _,yi  = binsearch(yt,y)
 	
-	-- initial configurations
-	local xStep,yStep,xsidehit,ysidehit
-	-- moving right(+), check left bound hit
-	if dx > 0 then 
-		xStep    = 1
-		xsidehit = 0
-	else
-		-- start at the left index (<= x) when ray points left
-		xi       = xi - 1
-		xStep    = -1
-		xsidehit = 1
-	end
-	if dy > 0 then 
-		yStep    = 1
-		ysidehit = 0
-	else
-		yi       = yi - 1
-		yStep    = -1
-		ysidehit = 1
-	end
-	
-	-- set to infinity if key-value doesn't exist
-	local xv = xt[xi] and xt[xi].value or xStep*math.huge
-	local yv = yt[yi] and yt[yi].value or yStep*math.huge
-	-- set to infinity when diving by zero
-	local dxRatio   = dx == 0 and math.huge or (xv - x)/dx
-	local dyRatio   = dy == 0 and math.huge or (yv - y)/dy
+	-- initial voxel configurations
+	local dx,xi,xv,xStep,xsidehit,dxRatio = initRayData(x,x2,xt)
+	local dy,yi,yv,yStep,ysidehit,dyRatio = initRayData(y,y2,yt)
+		
+	-- take the shortest path to the next voxel
 	local smallest  = min(dxRatio,dyRatio)
 	
 	-- Collect stabbed objects. Useful for colliding internally with a box
-	for i,obj in iterateStabs(xt,xi+xsidehit) do
-		multiset[obj] = 1
-	end
+	addStabsToSet(xt,xi+xsidehit,multiset)
 	for i,obj in iterateStabs(yt,yi+ysidehit) do
 		multiset[obj] = multiset[obj] and multiset[obj] + 1 or 1
 		if multiset[obj] > 1 then
@@ -456,7 +443,7 @@ s.rayQuery = function(self,x,y,x2,y2,isCoroutine)
 			dyRatio = (yv - y)/dy
 		end
 		-- take the shortest path to the next voxel
-		smallest        = min(dxRatio,dyRatio)
+		smallest  = min(dxRatio,dyRatio)
 	end
 end
 
