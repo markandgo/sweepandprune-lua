@@ -1,5 +1,5 @@
 --[[
-sapgrid.lua v1.41
+sapgrid.lua v1.42
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -21,7 +21,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN 
 
 --[[
 ===================
-INITIAL STUFF
+PRIVATE
 ===================
 --]]
 
@@ -31,14 +31,14 @@ local ceil    = math.ceil
 local max     = function(a,b) return a > b and a or b end
 local setmt   = setmetatable
 
-local path    = (...):match('^.*[%.%/]') or ''
-local sap     = require(path .. 'sweepandprune')
+local path  = (...):match('^.*[%.%/]') or ''
+local sap   = require(path .. 'sweepandprune')
 
 local weakValues = {__mode = 'v'}
-local weakKeys   = {__mode = 'k'}
 
 local DEFAULT_CELL_WIDTH  = 100
 local DEFAULT_CELL_HEIGHT = 100
+local MAX_POOL_SIZE       = 10
 
 -- change behavior of adding boxes to each sap
 local sap_add = function (self,objT)
@@ -54,6 +54,36 @@ local sap_add = function (self,objT)
 		insert(self.ybuffer,setmt({stabs = 0},objT.y1t))
 	end
 end
+
+-- reuse SAP instance
+local toSAPpool = function(grid,sap)
+	local pool = grid.SAPpool
+	if not next(sap.objects) and pool.count < MAX_POOL_SIZE then
+		pool[ pool.count+1 ] = sap
+		pool.count    = pool.count + 1
+		local t,k     = sap.parent[1],sap.parent[2]
+		t[k]          = nil
+		sap.parent[1] = nil
+		sap.parent[2] = nil
+	end
+end
+
+local getSpareSAP = function(pool,t,k)
+	local s = pool[ pool.count ]
+	if s then
+		pool[ pool.count ] = nil
+		pool.count    = pool.count - 1
+		s.parent[1]   = t
+		s.parent[2]   = k
+		return s
+	end
+end
+
+local sap   = function(grid,t,k)
+	local s   = getSpareSAP(grid.SAPpool,t,k) or sap()
+	s.parent  = not s.parent and {t,k} or s.parent
+	return s
+end  
 
 local toGridCoordinates = function(self,x0,y0,x1,y1)
 	local gx0 = floor(x0/self.width)
@@ -79,24 +109,24 @@ g.move = function (self,obj,x0,y0,x1,y1)
 	-- rasterize to grid coordinates
 	local gx0,gy0,gx1,gy1 = toGridCoordinates(self,x0,y0,x1,y1)
 	
-	local columns = self.objects[obj].columns
+	local rows = self.objects[obj].rows
 	-- delete object from old cells
-	for sap in pairs(columns) do 
+	for sap in pairs(rows) do 
 		sap:delete(obj)
 		-- remove sap reference for garbage collecting
-		columns[sap]        = nil
+		rows[sap]           = nil
 		self.activeSAP[sap] = true
 	end
 	
 	-- put object into new cells
-	for x = gx0,gx1 do
-		local column  = self.cells[x] or setmt({},weakValues)
-		self.cells[x] = column
-		for y = gy0,gy1 do
-			local sap = column[y] or sap()
-			column[y] = sap
-			-- column/sap reference to prevent garbage collecting
-			columns[sap]  = column 
+	for y = gy0,gy1 do
+		local row     = self.cells[y] or setmt({},weakValues)
+		self.cells[y] = row
+		for x = gx0,gx1 do
+			local sap = row[x] or sap(self,row,x)
+			row[x]    = sap
+			-- row/sap reference to prevent garbage collecting
+			rows[sap] = row 
 			sap_add(sap,self.objects[obj])
 			self.activeSAP[sap] = true
 		end
@@ -116,7 +146,7 @@ g.add = function (self,obj,x0,y0,x1,y1)
 			y0t     = y0t,
 			x1t     = x1t,
 			y1t     = y1t,
-			columns = {},
+			rows    = {},
 		}
 		self.objects[obj] = objT
 		
@@ -134,8 +164,7 @@ end
 
 g.delete = function (self,obj)
 	self.deletebuffer[obj] = obj
-	
-	for sap in pairs(self.objects[obj].columns) do
+	for sap in pairs(self.objects[obj].rows) do
 		sap:delete(obj)
 		self.activeSAP[sap] = true
 	end
@@ -146,6 +175,7 @@ g.update = function (self)
 	-- A cell is active when there is an add,delete, or move operation called for each sap
 	for sap in pairs(self.activeSAP) do
 		sap:update()
+		toSAPpool(self,sap)
 		self.activeSAP[sap] = nil
 	end
 	for obj in pairs(self.deletebuffer) do
@@ -157,7 +187,7 @@ end
 g.query = function (self,obj)
 	local list = {}
 	-- get pairs reported in each sap
-	for sap in pairs(self.objects[obj].columns) do
+	for sap in pairs(self.objects[obj].rows) do
 		for obj2 in pairs(sap.paired[obj]) do
 			list[obj2] = obj2
 		end
@@ -169,14 +199,14 @@ g.areaQuery = function(self,x0,y0,x1,y1,mode)
 	local list            = {}
 	local gx0,gy0,gx1,gy1 = toGridCoordinates(self,x0,y0,x1,y1)
 	-- for each cell the area touches...
-	for x = gx0,gx1 do
+	for y = gy0,gy1 do
 	
-		local column = self.cells[x]
-		for y = gy0,gy1 do
+		local row = self.cells[y]
+		for x = gx0,gx1 do
 		
-			if column and column[y] then
+			if row and row[x] then
 				-- for each sap in each cell...
-				for obj2 in pairs(column[y]:areaQuery(x0,y0,x1,y1,mode)) do
+				for obj2 in pairs(row[x]:areaQuery(x0,y0,x1,y1,mode)) do
 					list[obj2] = obj2
 				end
 			end
@@ -190,8 +220,8 @@ end
 g.pointQuery = function(self,x,y)
 	local gx0    = floor(x/self.width)
 	local gy0    = floor(y/self.height)
-	if self.cells[gx0] and self.cells[gx0][gy0] then
-		return self.cells[gx0][gy0]:pointQuery(x,y)
+	if self.cells[gy0] and self.cells[gy0][gx0] then
+		return self.cells[gy0][gx0]:pointQuery(x,y)
 	end
 end
 
@@ -237,16 +267,16 @@ g.rayQuery = function(self,x,y,x2,y2,isCoroutine)
 	
 	-- Use a repeat loop so that the ray checks its starting cell
 	repeat
-		local column = self.cells[gx0]
-		if column and column[gy0] then
+		local row = self.cells[gy0]
+		if row and row[gx0] then
 			-- if called as an iterator, iterate through all objects that overlaps the ray
 			-- otherwise, just look for the earliest hit and return
 			if isCoroutine then
-				for obj,hitx,hity in column[gy0]:iterRay(x,y,x2,y2) do
+				for obj,hitx,hity in row[gx0]:iterRay(x,y,x2,y2) do
 						if not set[obj] then coroutine.yield(obj,hitx,hity); set[obj]=true end
 				end
 			else
-				local obj,hitx,hity = column[gy0]:rayQuery(x,y,x2,y2)
+				local obj,hitx,hity = row[gx0]:rayQuery(x,y,x2,y2)
 				if obj then return obj,hitx,hity end
 			end
 		end
@@ -254,11 +284,11 @@ g.rayQuery = function(self,x,y,x2,y2,isCoroutine)
 		if dxRatio < dyRatio then
 			smallest  = dxRatio
 			dxRatio   = dxRatio + xDelta
-			gx0        = gx0 + xStep
+			gx0       = gx0 + xStep
 		else
 			smallest  = dyRatio
 			dyRatio   = dyRatio + yDelta
-			gy0        = gy0 + yStep
+			gy0       = gy0 + yStep
 		end
 	until smallest > 1
 end
@@ -270,8 +300,8 @@ g.iterRay = function(self,x,y,x2,y2)
 end
 
 g.draw = function(self)
-	for x,t in pairs(self.cells) do
-		for y,sap in pairs(t) do
+	for y,t in pairs(self.cells) do
+		for x,sap in pairs(t) do
 			love.graphics.rectangle('line',x*self.width,y*self.height,self.width,self.height)
 			love.graphics.print(x .. ',' .. y,x*self.width,y*self.height)
 			love.graphics.print(#sap.xintervals/2,x*self.width,y*self.height+self.height-15)
@@ -286,7 +316,8 @@ g.new = function(self,cell_width,cell_height)
 		cells         = setmt({},weakValues),
 		objects       = {},
 		deletebuffer  = {},
-		activeSAP     = setmetatable({},weakKeys),
+		activeSAP     = {},
+		SAPpool       = {count = 0},
 	},g)
 end
 
