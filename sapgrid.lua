@@ -65,27 +65,26 @@ local toSAPpool = function(grid,sap)
 	if not next(sap.objects) and pool.count < MAX_POOL_SIZE then
 		pool[ pool.count+1 ] = sap
 		pool.count    = pool.count + 1
-		local t,k     = sap.parent[1],sap.parent[2]
-		t[k]          = nil
+		sap.parent[1][ sap.parent[2] ] = nil
 		sap.parent[1] = nil
 		sap.parent[2] = nil
 	end
 end
 
-local getSpareSAP = function(pool,t,k)
+local getSpareSAP = function(pool,yt,keyToSap)
 	local s = pool[ pool.count ]
 	if s then
 		pool[ pool.count ] = nil
 		pool.count    = pool.count - 1
-		s.parent[1]   = t
-		s.parent[2]   = k
+		s.parent[1]   = yt
+		s.parent[2]   = keyToSap
 		return s
 	end
 end
 
-local sap   = function(grid,t,k)
-	local s   = getSpareSAP(grid.SAPpool,t,k) or sap()
-	s.parent  = not s.parent and {t,k} or s.parent
+local sap   = function(grid,yt,k)
+	local s   = getSpareSAP(grid.SAPpool,yt,k) or sap()
+	s.parent  = not s.parent and {yt,k} or s.parent
 	return s
 end  
 
