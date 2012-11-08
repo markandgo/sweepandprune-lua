@@ -222,25 +222,21 @@ local binsearch         = function( t,value)
 end
 
 -- iterate backward in the list and return stabbed endpoints
-local iterStabs = coroutine.wrap(function(state)
-	while true do
-		local t,i   = state[1],state[2]
-		local skip  = {}
-		local stabs = t[i] and t[i].stabs or 0
-		while stabs > 0 do
-			i = i - 1
-			local ep,obj = t[i],t[i].obj
-			if ep.interval == 0 and not skip[obj] then 
-				coroutine.yield(i,obj)
-				stabs     = stabs - 1
-			else skip[obj] = true end
-		end
-		state = coroutine.yield()
+local iterStabs = function(state,i)
+	if state.stabs > 0 then
+		i           = i-1
+		local t     = state[1]
+		local skip  = state.skip
+		local ep,obj= t[i],t[i].obj
+		if ep.interval == 0 and not skip[obj] then 
+			state.stabs = state.stabs - 1
+			return i,obj
+		else skip[obj] = true end
 	end
-end)
+end
 
 local iterateStabs = function(t,i)
-	return iterStabs,{t,i}
+	return iterStabs,{t,skip = {},stabs = t[i] and t[i].stabs or 0},i
 end
 
 local addStabsToSet = function(intervalT,index,set)
@@ -408,7 +404,6 @@ s.rayQuery = function(self,x,y,x2,y2,isCoroutine)
 			else return obj,x+smallest*dx,y+smallest*dy end
 		end
 	end
-	
 	-- voxel traversal loop
 	while smallest <= 1 do
 		-- if the the next line is vertical...
