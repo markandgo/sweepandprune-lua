@@ -132,15 +132,12 @@ local raycast = function(s)
 	setfenv(1,s)
 	local smallest
 	-- Use a repeat loop so that the ray checks its starting cell
-	local count = 1
 	repeat
 		local row = cells[gy0]
 		if row and row[gx0] then
-			local found = false
 			for obj,x,y in row[gx0]:iterRay(x,y,x2,y2) do
 				if not set[obj] then coroutine.yield(obj,x,y) end
 				set[obj] = true
-				found    = true
 			end
 		end
 		
@@ -153,7 +150,6 @@ local raycast = function(s)
 			dyRatio   = dyRatio + yDelta
 			gy0       = gy0 + yStep
 		end
-		count = count + 1
 	until smallest > 1
 end
 
