@@ -1,8 +1,8 @@
 # Sweep And Prune (SAP) + Grid
 
-Using the grid combined with the sap method should theoretically yield faster performance when many objects have low temporal coherence. Each cell in the grid has its own sap instance which manages objects that touches the cell. An analogy would be dividing a huge list of intervals and allocating each piece to a cell. Insertion, deletion and sorting should be quicker as each SAP only has to do a pass over a small(er) list in each cell.
+Using the grid combined with the sap method should theoretically yield faster performance when many objects have low temporal coherence. Each cell in the grid has its own sap instance which manages objects that touches the cell.
 
-Internally, the module only updates the active cells in the grid. Cells are active when the module has sent an insertion,movement or deletion event to them prior to updating. One example would be a world composed of many static tiles as found in 2d games. Assuming that the cells have the same sizes as the tiles, the module only has to update a small portion of cells (cells containing dynamics objects and tiles) to check for collisions.
+Internally, the module only updates the active cells in the grid. This is useful when parts of the grid is mostly idle and constant. The module also cleans up and reuses empty sap instances to reduce table creation.
 
 ## Usage
 

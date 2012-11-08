@@ -23,12 +23,12 @@ Update the position of the AABB for the given ID.
 `sapA:move(id,x0,y0,x1,y1)`
 
 ---
-Delete the AABB for the given ID. Deletion is guaranteed unless add is called before the next update call.
+Delete the AABB for the given ID. The AABB will be deleted in the next update unless add is called beforehand.
 
 `sapA:delete(id)`
 
 ---
-Update the SAP instance. Intersecting AABB pairs are not updated from add, move, or delete calls until this is called.
+Update the SAP instance. Intersecting AABB pairs are not updated until this function is called! This includes `add`, `delete`, and `move` operations!
 
 `sapA:update()`
 
@@ -54,7 +54,7 @@ Query a point and return a list of all AABB's that contains the point.
 `list = sapA:pointQuery(x0,y0,x1,y1)`
 
 ---
-Shoot a ray from point `x0,y0` to `x1,y1` and return the first intersected box and the point of contact. The ray will report any box that contains its origin as a collision.
+Shoot a ray from point `x0,y0` to `x1,y1` and return the first box that it touches and the point of contact. The ray will report any box that contains its origin as a collision.
 
 `obj,x,y = sapA:rayQuery(x0,y0,x1,y1)`
 
