@@ -3,7 +3,7 @@ Collision detection between 2 boxes
 Red when colliding, white otherwise.
 Red when ray collides with a box
 Red when a point is contained by a box
-Yellow when area query detects a box
+Green when area query detects a box
 ]]
 
 function love.load()
@@ -12,8 +12,11 @@ function love.load()
 	sapA  = sap(100,100)	
 	b1    = {x=0,y=0,w=100,h=100}
 	b2    = {x=250,y=250,w=100,h=100}
+	b3    = {x=400,y=300,w=300,h=300}
+	b4    = {x=100,y=100,w=100,h=100}
 	white = {255,255,255}
 	red   = {255,0,0}
+	green = {0,255,0}
 	line  = {400,0,400,600}
 	line2 = {0,300,800,300}
 	b1.color = white
@@ -30,10 +33,10 @@ function love.update(dt)
 	sapA:update()
 	-----------------
 	-- queries
-	a1      = sapA:areaQuery(400,300,700,600,'enclosed') -- enclosed boxes only
-	a2      = sapA:areaQuery(100,100,120,120)
+	a1      = sapA:areaQuery(b3.x,b3.y,b3.x+b3.w,b3.y+b3.h,true) -- enclosed boxes only
+	a2      = sapA:areaQuery(b4.x,b4.y,b4.x+b4.w,b4.y+b4.h)
 	p       = sapA:pointQuery(400,400)
-	r,px,py = sapA:rayQuery(unpack(line))
+	rhit,rx,ry = sapA:rayQuery(unpack(line))
 	
 end
 
@@ -60,21 +63,21 @@ function love.draw()
 	-- draw static rect
 	love.graphics.rectangle('line',b2.x,b2.y,b2.w,b2.h)
 	-----------------
-	if a1 and next(a1) then -- color for enclosure query
-		love.graphics.setColor(255,255,0)
+	if a1 and next(a1) then -- color for area query
+		love.graphics.setColor(green)
 	else
 		love.graphics.setColor(white)
 	end
 	-- draw query area
-	love.graphics.rectangle('line',400,300,300,300)
+	love.graphics.rectangle('line',b3.x,b3.y,b3.w,b3.h)
 	-----------------
-	if a2 and next(a2) then -- color for enclosure query
-		love.graphics.setColor(255,255,0)
+	if a2 and next(a2) then -- color for area query
+		love.graphics.setColor(green)
 	else
 		love.graphics.setColor(white)
 	end
 	-- draw query area
-	love.graphics.rectangle('line',100,100,20,20)
+	love.graphics.rectangle('line',b4.x,b4.y,b4.w,b4.h)
 	-----------------
 	-- draw point
 	if p and next(p) then -- color for point query
@@ -84,23 +87,25 @@ function love.draw()
 	end
 	love.graphics.circle('fill',400,400,5)
 	-----------------
-	-- draw contact point
 	-- returns in order all objects that intersects the line
+	r2hit = nil
+	r2x,r2y = nil
 	local i = 1
-	for obj,hitx,hity in sapA:iterRay(unpack(line2)) do
-		r2,p2x,p2y = obj,hitx,hity
-		love.graphics.print('hit ' .. i,p2x,p2y)
+	for obj,x,y in sapA:iterRay(unpack(line2)) do
+		r2hit = true
+		r2x,r2y = x,y
+		love.graphics.print('hit:' .. i,x,y)
 		i = i + 1
 	end
 	-----------------
 	-- draw ray
 	love.graphics.setColor(white)	
-	if r then love.graphics.setColor(red) end
-	love.graphics.line(line[1],line[2],px or line[3],py or line[4])
+	if rhit then love.graphics.setColor(red) end
+	love.graphics.line(line[1],line[2],rx or line[3],ry or line[4])
 	-----------------
 		-- draw ray
 	love.graphics.setColor(white)	
-	if r2 then love.graphics.setColor(red) end
-	love.graphics.line(line2[1],line2[2],p2x or line2[3],p2y or line2[4])
+	if r2hit then love.graphics.setColor(red) end
+	love.graphics.line(line2[1],line2[2],r2x or line2[3],r2y or line2[4])
 	-----------------
 end
