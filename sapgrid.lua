@@ -31,6 +31,10 @@ local ceil    = math.ceil
 local max     = function(a,b) return a > b and a or b end
 local setmt   = setmetatable
 
+local huge      = math.huge
+local setfenv   = setfenv
+local coroutine = coroutine
+
 local path  = (...):match('^.*[%.%/]') or ''
 local sap   = require(path .. 'sweepandprune')
 
@@ -91,6 +95,67 @@ local toGridCoordinates = function(self,x0,y0,x1,y1)
 	local gx1 = max(ceil(x1/self.width)-1,gx0)
 	local gy1 = max(ceil(y1/self.height)-1,gy0)
 	return gx0,gy0,gx1,gy1
+end
+
+local initRayData = function(cell_width,i,f)
+	local d       = f-i
+	local cell_i  = floor(i/cell_width)
+	
+	local dRatio,Delta,Step,Start
+	if d > 0 then 
+		Step   = 1 
+		Start  = 1 
+	else 
+		Step   = -1 
+		Start  = 0
+	end
+	-- zero hack
+	if d == 0 then
+		dRatio = huge
+		Delta  = 0
+	else
+		local dNextVoxel = cell_width*(cell_i+Start)-i
+		dRatio  = (dNextVoxel)/d
+		Delta   = cell_width/d * Step
+	end
+	
+	return dRatio,Delta,Step,Start,cell_i
+end
+
+local getRayState = function(self,x,y,x2,y2)
+	local s = {x=x,y=y,x2=x2,y2=y2,set = {},cells = self.cells}
+	s.dxRatio,s.xDelta,s.xStep,s.xStart,s.gx0 = initRayData(self.width,x,x2)
+	s.dyRatio,s.yDelta,s.yStep,s.yStart,s.gy0 = initRayData(self.height,y,y2)
+	return s
+end
+
+local raycast = function(s)
+	setfenv(1,s)
+	local smallest
+	-- Use a repeat loop so that the ray checks its starting cell
+	local count = 1
+	repeat
+		local row = cells[gy0]
+		if row and row[gx0] then
+			local found = false
+			for obj,x,y in row[gx0]:iterRay(x,y,x2,y2) do
+				if not set[obj] then coroutine.yield(obj,x,y) end
+				set[obj] = true
+				found    = true
+			end
+		end
+		
+		if dxRatio < dyRatio then
+			smallest  = dxRatio
+			dxRatio   = dxRatio + xDelta
+			gx0       = gx0 + xStep
+		else
+			smallest  = dyRatio
+			dyRatio   = dyRatio + yDelta
+			gy0       = gy0 + yStep
+		end
+		count = count + 1
+	until smallest > 1
 end
 
 --[[
@@ -225,78 +290,12 @@ g.pointQuery = function(self,x,y)
 	end
 end
 
--- DDA algorithm
-g.rayQuery = function(self,x,y,x2,y2,isCoroutine)
-	local dx,dy   = x2-x,y2-y
-	local set     = {}
-	local gx0,gy0 = floor(x/self.width),floor(y/self.height)
-	
-	local dxRatio,dyRatio,xDelta,yDelta,xStep,yStep,smallest,xStart,yStart
-	if dx > 0 then 
-		xStep   = 1 
-		xStart  = 1 
-	else 
-		xStep   = -1 
-		xStart  = 0
-	end
-	if dy > 0 then 
-		yStep   = 1 
-		yStart  = 1
-	else 
-		yStep   = -1 
-		yStart  = 0
-	end
-	
-	-- dx and dy zero hack
-	if dx == 0 then
-		dxRatio = math.huge
-		xDelta  = 0
-	else
-		local a,b = self.width/dx,x/dx
-		dxRatio   = a*(gx0+xStart)-b
-		xDelta    = a*xStep
-	end
-	if dy == 0 then
-		dyRatio = math.huge
-		yDelta  = 0
-	else
-		local a,b = self.height/dy,y/dy
-		dyRatio   = a*(gy0+yStart)-b
-		yDelta    = a*yStep
-	end
-	
-	-- Use a repeat loop so that the ray checks its starting cell
-	repeat
-		local row = self.cells[gy0]
-		if row and row[gx0] then
-			-- if called as an iterator, iterate through all objects that overlaps the ray
-			-- otherwise, just look for the earliest hit and return
-			if isCoroutine then
-				for obj,hitx,hity in row[gx0]:iterRay(x,y,x2,y2) do
-						if not set[obj] then coroutine.yield(obj,hitx,hity); set[obj]=true end
-				end
-			else
-				local obj,hitx,hity = row[gx0]:rayQuery(x,y,x2,y2)
-				if obj then return obj,hitx,hity end
-			end
-		end
-		
-		if dxRatio < dyRatio then
-			smallest  = dxRatio
-			dxRatio   = dxRatio + xDelta
-			gx0       = gx0 + xStep
-		else
-			smallest  = dyRatio
-			dyRatio   = dyRatio + yDelta
-			gy0       = gy0 + yStep
-		end
-	until smallest > 1
+g.rayQuery = function(self,x,y,x2,y2)
+	return coroutine.wrap(raycast)( getRayState(self,x,y,x2,y2) )
 end
 
 g.iterRay = function(self,x,y,x2,y2)
-	return coroutine.wrap(function()
-		g.rayQuery(self,x,y,x2,y2,true)
-	end)
+	return coroutine.wrap(raycast),getRayState(self,x,y,x2,y2)
 end
 
 g.draw = function(self)
