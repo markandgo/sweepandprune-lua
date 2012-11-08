@@ -31,7 +31,7 @@ The cell height (default is `100`:
 
 ## Functions
 
-Draw the cells:
+Draw the cells in LOVE. Top number is the cell coordinates, and bottom number is the amount of objects/cell:
 
 `sapA:draw()`
 

@@ -54,15 +54,15 @@ Query a point and return a list of all AABB's that contains the point.
 `list = sapA:pointQuery(x0,y0,x1,y1)`
 
 ---
-Shoot a ray from point `x0,y0` to `x1,y1` and return the first box that is hit. Also return its point of contact. The ray can collide internally with a box. The `isCoroutine` parameter is an internal parameter; you need not worry about it.
+Shoot a ray from point `x0,y0` to `x1,y1` and return the first intersected box and the point of contact. The ray will report any box that contains its origin as a collision.
 
-`obj,hitx,hity = sapA:rayQuery(x0,y0,x1,y1[,isCoroutine])`
+`obj,x,y = sapA:rayQuery(x0,y0,x1,y1)`
 
 ---
-Return an iterator that returns all boxes and its contact point (in order) in its path.
+Return an iterator that returns all boxes and points of contact in its path.
 
 ````lua
-for obj,hitx,hity in sapA:iterRay(x0,y0,x1,y1) do
+for obj,x,y in sapA:iterRay(x0,y0,x1,y1) do
 	...
 end
 ````
