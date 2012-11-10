@@ -45,17 +45,17 @@ local DEFAULT_CELL_HEIGHT = 100
 local MAX_POOL_SIZE       = 10
 
 -- change behavior of adding boxes to each sap
-local sap_add = function (self,objT)
+local sap_add = function (sap,objT)
 	local obj               = objT.x0t.obj
-	self.deletebuffer[obj]  = nil
-	if not self.objects[obj] then
-		self.paired[obj]  = {}
+	sap.deletebuffer[obj]  = nil
+	if not sap.objects[obj] then
+		sap.paired[obj]  = {}
 		-- setup proxy tables
-		self.objects[obj] = setmt({},objT)
-		insert(self.xbuffer,setmt({stabs = 0},objT.x0t))
-		insert(self.ybuffer,setmt({stabs = 0},objT.y0t))
-		insert(self.xbuffer,setmt({stabs = 0},objT.x1t))
-		insert(self.ybuffer,setmt({stabs = 0},objT.y1t))
+		sap.objects[obj] = setmt({},objT)
+		insert(sap.xbuffer,setmt({stabs = 0},objT.x0t))
+		insert(sap.ybuffer,setmt({stabs = 0},objT.y0t))
+		insert(sap.xbuffer,setmt({stabs = 0},objT.x1t))
+		insert(sap.ybuffer,setmt({stabs = 0},objT.y1t))
 	end
 end
 
@@ -88,11 +88,11 @@ local sap   = function(grid,yt,k)
 	return s
 end  
 
-local toGridCoordinates = function(self,x0,y0,x1,y1)
-	local gx0 = floor(x0/self.width)
-	local gy0 = floor(y0/self.height)
-	local gx1 = max(ceil(x1/self.width)-1,gx0)
-	local gy1 = max(ceil(y1/self.height)-1,gy0)
+local toGridCoordinates = function(grid,x0,y0,x1,y1)
+	local gx0 = floor(x0/grid.width)
+	local gy0 = floor(y0/grid.height)
+	local gx1 = max(ceil(x1/grid.width)-1,gx0)
+	local gy1 = max(ceil(y1/grid.height)-1,gy0)
 	return gx0,gy0,gx1,gy1
 end
 
@@ -121,10 +121,10 @@ local initRayData = function(cell_width,i,f)
 	return dRatio,Delta,Step,Start,cell_i
 end
 
-local getRayState = function(self,x,y,x2,y2)
-	local s = {x=x,y=y,x2=x2,y2=y2,set = {},cells = self.cells}
-	s.dxRatio,s.xDelta,s.xStep,s.xStart,s.gx0 = initRayData(self.width,x,x2)
-	s.dyRatio,s.yDelta,s.yStep,s.yStart,s.gy0 = initRayData(self.height,y,y2)
+local getRayState = function(grid,x,y,x2,y2)
+	local s = {x=x,y=y,x2=x2,y2=y2,set = {},cells = grid.cells}
+	s.dxRatio,s.xDelta,s.xStep,s.xStart,s.gx0 = initRayData(grid.width,x,x2)
+	s.dyRatio,s.yDelta,s.yStep,s.yStart,s.gy0 = initRayData(grid.height,y,y2)
 	return s
 end
 

@@ -264,13 +264,13 @@ local initRayData = function(cI,cF,iT)
 	return delta,i,indexV,step,sidehit,dRatio
 end
 
-local getRayState = function(self,x,y,x2,y2)
+local getRayState = function(sap,x,y,x2,y2)
 	local s = 
 	{
 		x=x,y=y,x2=x2,y2=y2,
 		multiset = {},
-		xt = self.xintervals,
-		yt = self.yintervals,
+		xt = sap.xintervals,
+		yt = sap.yintervals,
 	}
 
 	-- initial voxel configurations
