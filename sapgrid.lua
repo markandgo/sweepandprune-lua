@@ -118,13 +118,13 @@ local initRayData = function(cell_width,i,f)
 		Delta   = cell_width/d * Step
 	end
 	
-	return dRatio,Delta,Step,Start,cell_i
+	return dRatio,Delta,Step,cell_i
 end
 
 local getRayState = function(grid,x,y,x2,y2)
 	local s = {x=x,y=y,x2=x2,y2=y2,set = {},cells = grid.cells}
-	s.dxRatio,s.xDelta,s.xStep,s.xStart,s.gx0 = initRayData(grid.width,x,x2)
-	s.dyRatio,s.yDelta,s.yStep,s.yStart,s.gy0 = initRayData(grid.height,y,y2)
+	s.dxRatio,s.xDelta,s.xStep,s.gx0 = initRayData(grid.width,x,x2)
+	s.dyRatio,s.yDelta,s.yStep,s.gy0 = initRayData(grid.height,y,y2)
 	return s
 end
 
