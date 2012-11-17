@@ -129,22 +129,24 @@ local getRayState = function(grid,x,y,x2,y2)
 end
 
 local raycast = function(s)
-	setfenv(1,s)
+	local x,y,x2,y2,cells,set      = s.x,s.y,s.x2,s.y2,s.cells,s.set
+	local dxRatio,xDelta,xStep,gx0 = s.dxRatio,s.xDelta,s.xStep,s.gx0
+	local dyRatio,yDelta,yStep,gy0 = s.dyRatio,s.yDelta,s.yStep,s.gy0
 	local smallest
 	-- Use a repeat loop so that the ray checks its starting cell
 	repeat
 		local row = cells[gy0]
-		if row and row[gx0] then
-			for obj,x,y in row[gx0]:iterRay(x,y,x2,y2) do
+		if row and row[s.gx0] then
+			for obj,x,y in row[s.gx0]:iterRay(x,y,x2,y2) do
 				if not set[obj] then coroutine.yield(obj,x,y) end
 				set[obj] = true
 			end
 		end
 		
-		if dxRatio < dyRatio then
-			smallest  = dxRatio
-			dxRatio   = dxRatio + xDelta
-			gx0       = gx0 + xStep
+		if s.dxRatio < s.dyRatio then
+			smallest  = s.dxRatio
+			s.dxRatio = s.dxRatio + s.xDelta
+			s.gx0     = s.gx0 + xStep
 		else
 			smallest  = dyRatio
 			dyRatio   = dyRatio + yDelta
