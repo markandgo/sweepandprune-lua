@@ -137,17 +137,17 @@ local raycast = function(s)
 	-- Use a repeat loop so that the ray checks its starting cell
 	repeat
 		local row = cells[gy0]
-		if row and row[s.gx0] then
-			for obj,x,y in row[s.gx0]:iterRay(x,y,x2,y2) do
+		if row and row[gx0] then
+			for obj,x,y in row[gx0]:iterRay(x,y,x2,y2) do
 				if not set[obj] then yield(obj,x,y) end
 				set[obj] = true
 			end
 		end
 		
-		if s.dxRatio < s.dyRatio then
-			smallest  = s.dxRatio
-			s.dxRatio = s.dxRatio + s.xDelta
-			s.gx0     = s.gx0 + xStep
+		if dxRatio < dyRatio then
+			smallest  = dxRatio
+			dxRatio   = dxRatio + xDelta
+			gx0       = gx0 + xStep
 		else
 			smallest  = dyRatio
 			dyRatio   = dyRatio + yDelta
