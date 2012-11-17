@@ -33,7 +33,8 @@ local setmt   = setmetatable
 
 local huge      = math.huge
 local setfenv   = setfenv
-local coroutine = coroutine
+local yield     = coroutine.yield
+local wrap      = coroutine.wrap
 
 local path  = (...):match('^.*[%.%/]') or ''
 local sap   = require(path .. 'sweepandprune')
@@ -138,7 +139,7 @@ local raycast = function(s)
 		local row = cells[gy0]
 		if row and row[s.gx0] then
 			for obj,x,y in row[s.gx0]:iterRay(x,y,x2,y2) do
-				if not set[obj] then coroutine.yield(obj,x,y) end
+				if not set[obj] then yield(obj,x,y) end
 				set[obj] = true
 			end
 		end
@@ -288,11 +289,11 @@ g.pointQuery = function(self,x,y)
 end
 
 g.rayQuery = function(self,x,y,x2,y2)
-	return coroutine.wrap(raycast)( getRayState(self,x,y,x2,y2) )
+	return wrap(raycast)( getRayState(self,x,y,x2,y2) )
 end
 
 g.iterRay = function(self,x,y,x2,y2)
-	return coroutine.wrap(raycast),getRayState(self,x,y,x2,y2)
+	return wrap(raycast),getRayState(self,x,y,x2,y2)
 end
 
 g.draw = function(self)
