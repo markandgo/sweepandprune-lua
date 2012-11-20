@@ -1,5 +1,5 @@
 --[[
-sapgrid.lua v1.42a
+sapgrid.lua v1.42b
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -124,21 +124,21 @@ end
 
 local getRayState = function(grid,x,y,x2,y2)
 	local s = {x=x,y=y,x2=x2,y2=y2,set = {},cells = grid.cells}
-	s.dxRatio,s.xDelta,s.xStep,s.gx0 = initRayData(grid.width,x,x2)
-	s.dyRatio,s.yDelta,s.yStep,s.gy0 = initRayData(grid.height,y,y2)
+	s.dxRatio,s.xDelta,s.xStep,s.gx = initRayData(grid.width,x,x2)
+	s.dyRatio,s.yDelta,s.yStep,s.gy = initRayData(grid.height,y,y2)
 	return s
 end
 
 local raycast = function(s)
-	local x,y,x2,y2,cells,set      = s.x,s.y,s.x2,s.y2,s.cells,s.set
-	local dxRatio,xDelta,xStep,gx0 = s.dxRatio,s.xDelta,s.xStep,s.gx0
-	local dyRatio,yDelta,yStep,gy0 = s.dyRatio,s.yDelta,s.yStep,s.gy0
+	local x,y,x2,y2,cells,set     = s.x,s.y,s.x2,s.y2,s.cells,s.set
+	local dxRatio,xDelta,xStep,gx = s.dxRatio,s.xDelta,s.xStep,s.gx
+	local dyRatio,yDelta,yStep,gy = s.dyRatio,s.yDelta,s.yStep,s.gy
 	local smallest
 	-- Use a repeat loop so that the ray checks its starting cell
 	repeat
-		local row = cells[gy0]
-		if row and row[gx0] then
-			for obj,x,y in row[gx0]:iterRay(x,y,x2,y2) do
+		local row = cells[gy]
+		if row and row[gx] then
+			for obj,x,y in row[gx]:iterRay(x,y,x2,y2) do
 				if not set[obj] then yield(obj,x,y) end
 				set[obj] = true
 			end
@@ -147,11 +147,11 @@ local raycast = function(s)
 		if dxRatio < dyRatio then
 			smallest  = dxRatio
 			dxRatio   = dxRatio + xDelta
-			gx0       = gx0 + xStep
+			gx        = gx + xStep
 		else
 			smallest  = dyRatio
 			dyRatio   = dyRatio + yDelta
-			gy0       = gy0 + yStep
+			gy        = gy + yStep
 		end
 	until smallest > 1
 end
@@ -281,15 +281,15 @@ g.areaQuery = function(self,x0,y0,x1,y1,mode)
 end
 
 g.pointQuery = function(self,x,y)
-	local gx0    = floor(x/self.width)
-	local gy0    = floor(y/self.height)
-	if self.cells[gy0] and self.cells[gy0][gx0] then
-		return self.cells[gy0][gx0]:pointQuery(x,y)
+	local gx    = floor(x/self.width)
+	local gy    = floor(y/self.height)
+	if self.cells[gy] and self.cells[gy][gx] then
+		return self.cells[gy][gx]:pointQuery(x,y)
 	end
 end
 
 g.rayQuery = function(self,x,y,x2,y2)
-	return wrap(raycast)( getRayState(self,x,y,x2,y2) )
+	return wrap(raycast)(getRayState(self,x,y,x2,y2))
 end
 
 g.iterRay = function(self,x,y,x2,y2)

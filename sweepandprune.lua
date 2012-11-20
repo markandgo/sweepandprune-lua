@@ -1,5 +1,5 @@
 --[[
-sweepandprune.lua v1.42a
+sweepandprune.lua v1.42b
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -264,81 +264,6 @@ local initRayData = function(cI,cF,iT)
 	return delta,i,indexV,step,sidehit,dRatio
 end
 
-local getRayState = function(sap,x,y,x2,y2)
-	local s = 
-	{
-		x=x,y=y,x2=x2,y2=y2,
-		multiset = {},
-		xt = sap.xintervals,
-		yt = sap.yintervals,
-	}
-
-	-- initial voxel configurations
-	s.dx,s.xi,s.xv,s.xStep,s.xsidehit,s.dxRatio = initRayData(x,x2,s.xt)
-	s.dy,s.yi,s.yv,s.yStep,s.ysidehit,s.dyRatio = initRayData(y,y2,s.yt)
-		
-	return s
-end
-
-local raycast = function(s,obj)
-	setfenv(1,s)
-	-- take the shortest path to the next voxel
-	local smallest = min(dxRatio,dyRatio)
-	
-	-- the first voxel is checked for internal collision
-	-- one time only block
-	if not obj then
-		addStabsToSet(xt,xi+xsidehit,multiset)
-		for i,obj in iterateStabs(yt,yi+ysidehit) do
-			multiset[obj] = multiset[obj] and multiset[obj] + 1 or 1
-			if multiset[obj] > 1 then return obj,x+smallest*dx,y+smallest*dy end
-		end
-	end
-
-	-- voxel traversal loop
-	while smallest <= 1 do
-		-- if the the next line is vertical...
-		if smallest == dxRatio then
-			-- if the ray is hitting a box from the outside...
-			if xt[xi].interval == xsidehit then
-				multiset[xt[xi].obj] = multiset[xt[xi].obj] and multiset[xt[xi].obj] + 1 or 1
-			else
-				multiset[xt[xi].obj] = 0
-			end
-			
-			local oxi,oRatio  = xi,dxRatio
-			-- update the ratio for the next step
-			xi      = xi + xStep
-			xv      = xt[xi] and xt[xi].value or xStep*huge
-			dxRatio = (xv - x)/dx
-			
-			-- if the box is hit on both axes
-			if multiset[xt[oxi].obj] > 1 then 
-				local xv = xt[oxi].value
-				return xt[oxi].obj, xv, oRatio*dy+y
-			end
-		else
-			if yt[yi].interval == ysidehit then
-				multiset[yt[yi].obj] = multiset[yt[yi].obj] and multiset[yt[yi].obj] + 1 or 1
-			else
-				multiset[yt[yi].obj] = 0
-			end
-			
-			local oyi,oRatio  = yi,dyRatio
-			yi      = yi + yStep
-			yv      = yt[yi] and yt[yi].value or yStep*huge
-			dyRatio = (yv - y)/dy
-			
-			if multiset[yt[oyi].obj] > 1 then 
-				local yv = yt[oyi].value
-				return yt[oyi].obj, oRatio*dx+x, yv
-			end
-		end
-		
-		smallest  = min(dxRatio,dyRatio)
-	end
-end
-
 --[[
 ===================
 PUBLIC
@@ -463,11 +388,72 @@ end
 
 -- Raycast through a voxel grid
 s.rayQuery = function(self,x,y,x2,y2)
-	return raycast( getRayState(self,x,y,x2,y2) )
+	return self:iterRay(x,y,x2,y2)()
 end
 
 s.iterRay = function(self,x,y,x2,y2)
-	return raycast,getRayState(self,x,y,x2,y2)
+	local xt = self.xintervals
+	local yt = self.yintervals
+	local dx,xi,xv,xStep,xsidehit,dxRatio = initRayData(x,x2,xt)
+	local dy,yi,yv,yStep,ysidehit,dyRatio = initRayData(y,y2,yt)
+	local multiset = {}
+
+	return function(_,obj) -- take the shortest path to the next voxel
+		local smallest = min(dxRatio,dyRatio)
+		
+		-- the first voxel is checked for internal collision
+		-- one time only block
+		if not obj then
+			addStabsToSet(xt,xi+xsidehit,multiset)
+			for i,obj in iterateStabs(yt,yi+ysidehit) do
+				multiset[obj] = multiset[obj] and multiset[obj] + 1 or 1
+				if multiset[obj] > 1 then return obj,x+smallest*dx,y+smallest*dy end
+			end
+		end
+	
+		-- voxel traversal loop
+		while smallest <= 1 do
+			-- if the the next line is vertical...
+			if smallest == dxRatio then
+				-- if the ray is hitting a box from the outside...
+				if xt[xi].interval == xsidehit then
+					multiset[xt[xi].obj] = multiset[xt[xi].obj] and multiset[xt[xi].obj] + 1 or 1
+				else
+					multiset[xt[xi].obj] = 0
+				end
+				
+				local oxi,oRatio  = xi,dxRatio
+				-- update the ratio for the next step
+				xi      = xi + xStep
+				xv      = xt[xi] and xt[xi].value or xStep*huge
+				dxRatio = (xv - x)/dx
+				
+				-- if the box is hit on both axes
+				if multiset[xt[oxi].obj] > 1 then 
+					local xv = xt[oxi].value
+					return xt[oxi].obj, xv, oRatio*dy+y
+				end
+			else
+				if yt[yi].interval == ysidehit then
+					multiset[yt[yi].obj] = multiset[yt[yi].obj] and multiset[yt[yi].obj] + 1 or 1
+				else
+					multiset[yt[yi].obj] = 0
+				end
+				
+				local oyi,oRatio  = yi,dyRatio
+				yi      = yi + yStep
+				yv      = yt[yi] and yt[yi].value or yStep*huge
+				dyRatio = (yv - y)/dy
+				
+				if multiset[yt[oyi].obj] > 1 then 
+					local yv = yt[oyi].value
+					return yt[oyi].obj, oRatio*dx+x, yv
+				end
+			end
+			
+			smallest  = min(dxRatio,dyRatio)
+		end
+	end
 end
 
 s.new = function()
