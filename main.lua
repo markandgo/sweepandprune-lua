@@ -1,7 +1,6 @@
 --[[
 Collision detection between 2 boxes
 Red when colliding, white otherwise.
-Red when ray collides with a box
 Red when a point is contained by a box
 Green when area query detects a box
 ]]
@@ -17,8 +16,6 @@ function love.load()
 	white = {255,255,255}
 	red   = {255,0,0}
 	green = {0,255,0}
-	line  = {400,0,400,600}
-	line2 = {0,300,800,300}
 	b1.color = white
 	b2.color = white
 	sapA:add(b1,b1.x,b1.y,b1.x+b1.w,b1.y+b1.h)
@@ -36,17 +33,7 @@ function love.update(dt)
 	a1      = sapA:areaQuery(b3.x,b3.y,b3.x+b3.w,b3.y+b3.h,true) -- enclosed boxes only
 	a2      = sapA:areaQuery(b4.x,b4.y,b4.x+b4.w,b4.y+b4.h)
 	p       = sapA:pointQuery(400,400)
-	rhit,rx,ry = sapA:rayQuery(unpack(line))
 	
-end
-
-function love.mousepressed(x,y,k)
-	if k == 'l' then
-		line[1],line[2],line[3],line[4] = line[3],line[4],x,y
-	end
-	if k == 'r' then
-		line2[1],line2[2],line2[3],line2[4] = line2[3],line2[4],x,y
-	end
 end
 
 function love.draw()
@@ -86,26 +73,5 @@ function love.draw()
 		love.graphics.setColor(white)
 	end
 	love.graphics.circle('fill',400,400,5)
-	-----------------
-	-- returns in order all objects that intersects the line
-	r2hit = nil
-	r2x,r2y = nil
-	local i = 1
-	for obj,x,y in sapA:iterRay(unpack(line2)) do
-		r2hit = true
-		r2x,r2y = x,y
-		love.graphics.print('hit:' .. i,x,y)
-		i = i + 1
-	end
-	-----------------
-	-- draw ray
-	love.graphics.setColor(white)	
-	if rhit then love.graphics.setColor(red) end
-	love.graphics.line(line[1],line[2],rx or line[3],ry or line[4])
-	-----------------
-		-- draw ray
-	love.graphics.setColor(white)	
-	if r2hit then love.graphics.setColor(red) end
-	love.graphics.line(line2[1],line2[2],r2x or line2[3],r2y or line2[4])
 	-----------------
 end

@@ -1,5 +1,5 @@
 --[[
-sapgrid.lua v1.42b
+sapgrid.lua v1.43
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -30,11 +30,6 @@ local floor   = math.floor
 local ceil    = math.ceil
 local max     = function(a,b) return a > b and a or b end
 local setmt   = setmetatable
-
-local huge      = math.huge
-local setfenv   = setfenv
-local yield     = coroutine.yield
-local wrap      = coroutine.wrap
 
 local path  = (...):match('^.*[%.%/]') or ''
 local sap   = require(path .. 'sweepandprune')
@@ -95,31 +90,6 @@ local toGridCoordinates = function(grid,x0,y0,x1,y1)
 	local gx1 = max(ceil(x1/grid.width)-1,gx0)
 	local gy1 = max(ceil(y1/grid.height)-1,gy0)
 	return gx0,gy0,gx1,gy1
-end
-
-local initRayData = function(cell_width,i,f)
-	local d       = f-i
-	local cell_i  = floor(i/cell_width)
-	
-	local dRatio,Delta,Step,Start
-	if d > 0 then 
-		Step   = 1 
-		Start  = 1 
-	else 
-		Step   = -1 
-		Start  = 0
-	end
-	-- zero hack
-	if d == 0 then
-		dRatio = huge
-		Delta  = 0
-	else
-		local dNextVoxel = cell_width*(cell_i+Start)-i
-		dRatio  = (dNextVoxel)/d
-		Delta   = cell_width/d * Step
-	end
-	
-	return dRatio,Delta,Step,cell_i
 end
 
 --[[
@@ -252,39 +222,6 @@ g.pointQuery = function(self,x,y)
 	if self.cells[gy] and self.cells[gy][gx] then
 		return self.cells[gy][gx]:pointQuery(x,y)
 	end
-end
-
-g.rayQuery = function(self,x,y,x2,y2)
-	return self:iterRay(x,y,x2,y2)()
-end
-
-g.iterRay = function(self,x,y,x2,y2)
-	return wrap(function()
-		local dxRatio,xDelta,xStep,gx = initRayData(self.width,x,x2)
-		local dyRatio,yDelta,yStep,gy = initRayData(self.height,y,y2)
-		local set,cells = {},self.cells
-		local smallest
-		-- Use a repeat loop so that the ray checks its starting cell
-		repeat
-			local row = cells[gy]
-			if row and row[gx] then
-				for obj,x,y in row[gx]:iterRay(x,y,x2,y2) do
-					if not set[obj] then yield(obj,x,y) end
-					set[obj] = true
-				end
-			end
-			
-			if dxRatio < dyRatio then
-				smallest  = dxRatio
-				dxRatio   = dxRatio + xDelta
-				gx        = gx + xStep
-			else
-				smallest  = dyRatio
-				dyRatio   = dyRatio + yDelta
-				gy        = gy + yStep
-			end
-		until smallest > 1
-	end)
 end
 
 g.draw = function(self)

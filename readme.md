@@ -33,7 +33,3 @@ Based on the following papers:
 	by: Tracy, Buss, Woods
 *	I-Collide  
 	by: Cohen, Lin, Manocha, Ponamgi
-*	Box Casting: A Fast Broad Phase for Dynamic Collision Detection
-	by: Coumans,Bergen
-*	A Fast Voxel Traversal Algorithm for Ray Tracing
-	by: Amanatides,Woo

@@ -53,19 +53,6 @@ Query a point and return a list of all AABB's that contains the point.
 
 `list = sapA:pointQuery(x0,y0,x1,y1)`
 
----
-Shoot a ray from point `x0,y0` to `x1,y1` and return the first box that it touches and the point of contact. The ray will report any box that contains its origin as a collision.
-
-`obj,x,y = sapA:rayQuery(x0,y0,x1,y1)`
-
----
-Return an iterator that returns all boxes and points of contact in its path.
-
-````lua
-for obj,x,y in sapA:iterRay(x0,y0,x1,y1) do
-	...
-end
-````
 
 ## Example:
 

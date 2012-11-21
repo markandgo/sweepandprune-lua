@@ -1,5 +1,5 @@
 --[[
-sweepandprune.lua v1.42b
+sweepandprune.lua v1.43
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -22,9 +22,6 @@ local insert  = table.insert
 local remove  = table.remove
 local sort    = table.sort
 local pairs   = pairs
-local min     = function(a,b) return a < b and a or b end
-local huge    = math.huge
-local setfenv = setfenv
 
 --[[
 ===================
@@ -248,22 +245,6 @@ local addStabsToSet = function(intervalT,index,set)
 	end
 end
 
-local initRayData = function(cI,cF,iT)
-	local step,sidehit
-	local _,i   = binsearch(iT,cI)
-	local delta = cF - cI
-	if delta > 0 then
-		step,sidehit   = 1,0
-	else
-		i,step,sidehit = i-1,-1,1
-	end
-	-- set to infinity if key-value doesn't exist
-	local indexV  = iT[i] and iT[i].value or step*math.huge
-	-- set to infinity when diving by zero
-	local dRatio  = delta == 0 and math.huge or (indexV - cI)/delta
-	return delta,i,indexV,step,sidehit,dRatio
-end
-
 --[[
 ===================
 PUBLIC
@@ -384,76 +365,6 @@ s.pointQuery = function(self,x,y)
 	end
 	
 	return yset
-end
-
--- Raycast through a voxel grid
-s.rayQuery = function(self,x,y,x2,y2)
-	return self:iterRay(x,y,x2,y2)()
-end
-
-s.iterRay = function(self,x,y,x2,y2)
-	local xt = self.xintervals
-	local yt = self.yintervals
-	local dx,xi,xv,xStep,xsidehit,dxRatio = initRayData(x,x2,xt)
-	local dy,yi,yv,yStep,ysidehit,dyRatio = initRayData(y,y2,yt)
-	local multiset = {}
-
-	return function(_,obj) -- take the shortest path to the next voxel
-		local smallest = min(dxRatio,dyRatio)
-		
-		-- the first voxel is checked for internal collision
-		-- one time only block
-		if not obj then
-			addStabsToSet(xt,xi+xsidehit,multiset)
-			for i,obj in iterateStabs(yt,yi+ysidehit) do
-				multiset[obj] = multiset[obj] and multiset[obj] + 1 or 1
-				if multiset[obj] > 1 then return obj,x+smallest*dx,y+smallest*dy end
-			end
-		end
-	
-		-- voxel traversal loop
-		while smallest <= 1 do
-			-- if the the next line is vertical...
-			if smallest == dxRatio then
-				-- if the ray is hitting a box from the outside...
-				if xt[xi].interval == xsidehit then
-					multiset[xt[xi].obj] = multiset[xt[xi].obj] and multiset[xt[xi].obj] + 1 or 1
-				else
-					multiset[xt[xi].obj] = 0
-				end
-				
-				local oxi,oRatio  = xi,dxRatio
-				-- update the ratio for the next step
-				xi      = xi + xStep
-				xv      = xt[xi] and xt[xi].value or xStep*huge
-				dxRatio = (xv - x)/dx
-				
-				-- if the box is hit on both axes
-				if multiset[xt[oxi].obj] > 1 then 
-					local xv = xt[oxi].value
-					return xt[oxi].obj, xv, oRatio*dy+y
-				end
-			else
-				if yt[yi].interval == ysidehit then
-					multiset[yt[yi].obj] = multiset[yt[yi].obj] and multiset[yt[yi].obj] + 1 or 1
-				else
-					multiset[yt[yi].obj] = 0
-				end
-				
-				local oyi,oRatio  = yi,dyRatio
-				yi      = yi + yStep
-				yv      = yt[yi] and yt[yi].value or yStep*huge
-				dyRatio = (yv - y)/dy
-				
-				if multiset[yt[oyi].obj] > 1 then 
-					local yv = yt[oyi].value
-					return yt[oyi].obj, oRatio*dx+x, yv
-				end
-			end
-			
-			smallest  = min(dxRatio,dyRatio)
-		end
-	end
 end
 
 s.new = function()
