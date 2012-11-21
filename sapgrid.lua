@@ -122,40 +122,6 @@ local initRayData = function(cell_width,i,f)
 	return dRatio,Delta,Step,cell_i
 end
 
-local getRayState = function(grid,x,y,x2,y2)
-	local s = {x=x,y=y,x2=x2,y2=y2,set = {},cells = grid.cells}
-	s.dxRatio,s.xDelta,s.xStep,s.gx = initRayData(grid.width,x,x2)
-	s.dyRatio,s.yDelta,s.yStep,s.gy = initRayData(grid.height,y,y2)
-	return s
-end
-
-local raycast = function(s)
-	local x,y,x2,y2,cells,set     = s.x,s.y,s.x2,s.y2,s.cells,s.set
-	local dxRatio,xDelta,xStep,gx = s.dxRatio,s.xDelta,s.xStep,s.gx
-	local dyRatio,yDelta,yStep,gy = s.dyRatio,s.yDelta,s.yStep,s.gy
-	local smallest
-	-- Use a repeat loop so that the ray checks its starting cell
-	repeat
-		local row = cells[gy]
-		if row and row[gx] then
-			for obj,x,y in row[gx]:iterRay(x,y,x2,y2) do
-				if not set[obj] then yield(obj,x,y) end
-				set[obj] = true
-			end
-		end
-		
-		if dxRatio < dyRatio then
-			smallest  = dxRatio
-			dxRatio   = dxRatio + xDelta
-			gx        = gx + xStep
-		else
-			smallest  = dyRatio
-			dyRatio   = dyRatio + yDelta
-			gy        = gy + yStep
-		end
-	until smallest > 1
-end
-
 --[[
 ===================
 PUBLIC
@@ -289,11 +255,36 @@ g.pointQuery = function(self,x,y)
 end
 
 g.rayQuery = function(self,x,y,x2,y2)
-	return wrap(raycast)(getRayState(self,x,y,x2,y2))
+	return self:iterRay(x,y,x2,y2)()
 end
 
 g.iterRay = function(self,x,y,x2,y2)
-	return wrap(raycast),getRayState(self,x,y,x2,y2)
+	return wrap(function()
+		local dxRatio,xDelta,xStep,gx = initRayData(self.width,x,x2)
+		local dyRatio,yDelta,yStep,gy = initRayData(self.height,y,y2)
+		local set,cells = {},self.cells
+		local smallest
+		-- Use a repeat loop so that the ray checks its starting cell
+		repeat
+			local row = cells[gy]
+			if row and row[gx] then
+				for obj,x,y in row[gx]:iterRay(x,y,x2,y2) do
+					if not set[obj] then yield(obj,x,y) end
+					set[obj] = true
+				end
+			end
+			
+			if dxRatio < dyRatio then
+				smallest  = dxRatio
+				dxRatio   = dxRatio + xDelta
+				gx        = gx + xStep
+			else
+				smallest  = dyRatio
+				dyRatio   = dyRatio + yDelta
+				gy        = gy + yStep
+			end
+		until smallest > 1
+	end)
 end
 
 g.draw = function(self)
