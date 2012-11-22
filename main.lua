@@ -99,7 +99,7 @@ function love.draw()
 	-----------------
 	-- returns in order all objects that intersects the line
 	for i,t in ipairs(hits) do
-		love.graphics.print('hit:' .. i,t[2],t[3])
+		if t[2] and t[3] then love.graphics.print('hit:' .. i,t[2],t[3]) end
 	end
 	-----------------
 	-- draw ray
