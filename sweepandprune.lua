@@ -1,5 +1,5 @@
 --[[
-sweepandprune.lua v1.43
+sweepandprune.lua v1.44
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -22,6 +22,8 @@ local insert  = table.insert
 local remove  = table.remove
 local sort    = table.sort
 local pairs   = pairs
+local min     = function(a,b) return a < b and a or b end
+local huge    = math.huge
 
 --[[
 ===================
@@ -182,13 +184,14 @@ end
 -- return left index and right index of v where li < v < ri
 local default_fcompval  = function( e ) return e and e.value end
 local fcomp             = function( a,b ) return a < b end
+-- return left bound and right bound where lb <= v <= rb
 local binsearch         = function( t,value)
 	-- Initialise functions
 	local fcompval = default_fcompval
 	--  Initialise numbers
 	local iStart,iEnd,iMid 	= 1,#t,0
 	-- assume 0 = -inf,#t+1 = inf
-	local start,last = 0,#t+1
+	local lb,rb = 0,#t+1
 	-- Binary Search
 	while iStart <= iEnd do
 		-- calculate middle
@@ -197,33 +200,33 @@ local binsearch         = function( t,value)
 		local value2 = fcompval( t[iMid] )
 		-- get all values that match
 		if value == value2 then
-			start,last = iMid,iMid
+			lb,rb = iMid,iMid
 			local num = iMid - 1
 			while value == fcompval( t[num] ) do
-				start		= num
-				num 		= num - 1
+				lb	= num
+				num = num - 1
 			end
 			num = iMid + 1
 			while value == fcompval( t[num] ) do
-				last	= num
-				num 	= num + 1
+				rb	= num
+				num = num + 1
 			end
-			return start-1,last+1
+			return lb,rb
 		-- keep searching
 		elseif fcomp( value,value2 ) then
-			last = iMid
+			rb   = iMid
 			iEnd = iMid - 1
 		else
-			start	 = iMid
+			lb	   = iMid
 			iStart = iMid + 1
 		end
 	end
-	return start,last
+	return lb,rb
 end
 
 -- iterate backward in the list and return stabbed endpoints
 local iterStabs = function(state,i)
-	if state.stabs > 0 then
+	while state.stabs > 0 do
 		i           = i-1
 		local t     = state[1]
 		local skip  = state.skip
@@ -243,6 +246,42 @@ local addStabsToSet = function(intervalT,index,set)
 	for i,obj in iterateStabs(intervalT,index) do
 		set[obj] = set[obj] and set[obj]+1 or 1
 	end
+end
+
+local initRayData = function(i,f,t)
+	local d   = f -i
+	local l,r = binsearch(t,i)
+	
+	local Step,SideCheck,dRatio,ti
+	if d >= 0 then
+		Step       = 1
+		SideCheck  = 0
+		ti         = r
+	else
+		Step       = -1
+		SideCheck  = 1
+		ti         = l
+	end
+	local v   = t[ti] and t[ti].value or Step*huge
+	dRatio    = (v-i)/d
+	dRatio    = dRatio >= 0 and dRatio or huge
+	return Step,SideCheck,dRatio,ti
+end
+
+function incrementRay(i,d,ti,t,dRatio,sideCheck,step,multiset)
+	local obj = t[ti].obj
+	-- if endpoint is hit on the "right" side then add to set
+	if t[ti].interval == sideCheck then
+		multiset[obj] = multiset[obj] and multiset[obj] + 1 or 1
+	else
+		multiset[obj] = 0
+	end
+	
+	-- update the ratio and index for the next step
+	ti     = ti + step
+	local v= t[ti] and t[ti].value or step*huge
+	dRatio = (v-i)/d
+	return ti,dRatio
 end
 
 --[[
@@ -367,6 +406,52 @@ s.pointQuery = function(self,x,y)
 	return yset
 end
 
+-- Raycast through a voxel grid
+s.rayQuery = function(self,x,y,x2,y2)
+	return self:iterRay(x,y,x2,y2)()
+end
+
+s.iterRay = function(self,x,y,x2,y2)
+	local dx,dy = x2-x,y2-y
+	local xt,yt = self.xintervals,self.yintervals
+	local xStep,xSideCheck,dxRatio,xi = initRayData(x,x2,xt)
+	local yStep,ySideCheck,dyRatio,yi = initRayData(y,y2,yt)
+	local multiset = {}	
+	
+	return function(_,obj)
+		local minRatio = min(dxRatio,dyRatio)
+		
+		-- check for internal hit or add to set for obj's with intervals containing ray's origin
+		-- internal hit does not return point of contact
+		if not obj then
+		
+			for i,obj in iterateStabs(xt,xi+xSideCheck) do
+				multiset[obj] = multiset[obj] and multiset[obj]+1 or 1
+			end
+			for i,obj in iterateStabs(yt,yi+ySideCheck) do
+				multiset[obj] = multiset[obj] and multiset[obj]+1 or 1
+				if multiset[obj] > 1 then
+					return obj
+				end
+			end
+			
+		end
+		
+		while minRatio <= 1 do
+			local obj
+			if minRatio == dxRatio then
+				obj  = xt[xi].obj
+				xi,dxRatio = incrementRay(x,dx,xi,xt,dxRatio,xSideCheck,xStep,multiset)
+			else
+				obj  = yt[yi].obj
+				yi,dyRatio = incrementRay(y,dy,yi,yt,dyRatio,ySideCheck,yStep,multiset)
+			end
+			if multiset[obj] > 1 then return obj,x+minRatio*dx,y+minRatio*dy end
+			minRatio = min(dxRatio,dyRatio)
+		end
+	end
+end
+	
 s.new = function()
 	return setmetatable({
 			xintervals   = {},
