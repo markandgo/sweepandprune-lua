@@ -268,7 +268,7 @@ local initRayData = function(i,f,t)
 	return Step,SideCheck,dRatio,ti
 end
 
-function incrementRay(i,d,ti,t,dRatio,sideCheck,step,multiset)
+local incrementRay = function(i,d,ti,t,dRatio,sideCheck,step,multiset)
 	local obj = t[ti].obj
 	-- if endpoint is hit on the "right" side then add to set
 	if t[ti].interval == sideCheck then
