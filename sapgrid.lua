@@ -32,7 +32,7 @@ local max     = function(a,b) return a > b and a or b end
 local setmt   = setmetatable
 
 local path    = (...):match('^.*[%.%/]') or ''
-local sap     = require(path .. 'sweepandprune')
+local sap     = require(path .. 'sap')
 
 local weakValues = {__mode = 'v'}
 local weakKeys   = {__mode = 'k'}
@@ -40,13 +40,11 @@ local weakKeys   = {__mode = 'k'}
 local DEFAULT_CELL_WIDTH  = 100
 local DEFAULT_CELL_HEIGHT = 100
 
--- change behavior of adding boxes to each sap
 local sap_add = function (self,objT)
 	local obj = objT.x0t.obj
 	self.deletebuffer[obj] = nil
 	if not self.objects[obj] then
 		self.paired[obj]  = {}
-		-- setup proxy tables
 		self.objects[obj] = objT
 		insert(self.xbuffer,objT.x0t)
 		insert(self.ybuffer,objT.y0t)
@@ -68,30 +66,25 @@ g.move = function (self,obj,x0,y0,x1,y1)
 	self.objects[obj].y0t.value = y0
 	self.objects[obj].x1t.value = x1
 	self.objects[obj].y1t.value = y1
-	-- rasterize to grid coordinates
 	local cell_x0 = floor(x0/self.width)
 	local cell_x1 = max(ceil(x1/self.width)-1,cell_x0)
 	local cell_y0 = floor(y0/self.height)
 	local cell_y1 = max(ceil(y1/self.height)-1,cell_y0)
 	
-	local columns = self.objects[obj].columns
-	-- delete object from old cells
-	for sap in pairs(columns) do 
+	local rows = self.objects[obj].rows
+	for sap in pairs(rows) do 
 		sap:delete(obj)
-		-- remove sap reference for garbage collecting
-		columns[sap]        = nil
+		rows[sap]           = nil
 		self.activeSAP[sap] = true
 	end
 	
-	-- put object into new cells
-	for x = cell_x0,cell_x1 do
-		local column  = self.cells[x] or setmt({},weakValues)
-		self.cells[x] = column
-		for y = cell_y0,cell_y1 do
-			local sap = column[y] or sap()
-			column[y] = sap
-			-- column/sap reference to prevent garbage collecting
-			columns[sap]  = column 
+	for y = cell_y0,cell_y1 do
+		local row     = self.cells[y] or setmt({},weakValues)
+		self.cells[y] = row
+		for x = cell_x0,cell_x1 do
+			local sap = row[x] or sap()
+			row[x]    = sap
+			rows[sap] = row 
 			sap_add(sap,self.objects[obj])
 			self.activeSAP[sap] = true
 		end
@@ -111,11 +104,10 @@ g.add = function (self,obj,x0,y0,x1,y1)
 			y0t     = y0t,
 			x1t     = x1t,
 			y1t     = y1t,
-			columns = {},
+			rows    = {},
 		}
 		self.objects[obj] = objT
 		
-		-- for sap's proxy tables
 		x0t.__index   = x0t
 		y0t.__index   = y0t
 		x1t.__index   = x1t
@@ -130,15 +122,13 @@ end
 g.delete = function (self,obj)
 	self.deletebuffer[obj] = obj
 	
-	for sap in pairs(self.objects[obj].columns) do
+	for sap in pairs(self.objects[obj].rows) do
 		sap:delete(obj)
 		self.activeSAP[sap] = true
 	end
 end
 
 g.update = function (self)
-	-- only update active cells
-	-- A cell is active when there is an add,delete, or move operation called for each sap
 	for sap in pairs(self.activeSAP) do
 		sap:update()
 		self.activeSAP[sap] = nil
@@ -151,8 +141,7 @@ end
 
 g.query = function (self,obj)
 	local list = {}
-	-- get pairs reported in each sap
-	for sap in pairs(self.objects[obj].columns) do
+	for sap in pairs(self.objects[obj].rows) do
 		for obj2 in pairs(sap.paired[obj]) do
 			list[obj2] = obj2
 		end
@@ -161,11 +150,15 @@ g.query = function (self,obj)
 end
 
 g.draw = function(self)
-	for x,t in pairs(self.cells) do
-		for y,sap in pairs(t) do
-			love.graphics.rectangle('line',x*self.width,y*self.height,self.width,self.height)
-			love.graphics.print(x .. ',' .. y,x*self.width,y*self.height)
-			love.graphics.print(#sap.xintervals/2,x*self.width,y*self.height+self.height-15)
+	local w,h = self.width,self.height
+	local f   = love.graphics.getFont()
+	local fh  = f and f:getHeight() or 14
+	for y,t in pairs(self.cells) do
+		for x,sap in pairs(t) do
+			local rx,ry = x*self.width,y*self.height
+			love.graphics.rectangle('line',rx,ry,w,h)
+			love.graphics.print(x .. ',' .. y,rx,ry)
+			love.graphics.print(#sap.xintervals/2,rx,ry+self.height-fh)
 		end
 	end
 end

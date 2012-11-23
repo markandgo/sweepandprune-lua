@@ -1,5 +1,5 @@
 --[[
-sweepandprune.lua
+sap.lua
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -28,14 +28,12 @@ PRIVATE
 ===================
 --]]
 
--- comparison function for insertion sort
 local isSorted = function (endpointA,endpointB)
 	return endpointA.value < endpointB.value or 
 	endpointA.value == endpointB.value and 
 	endpointA.interval < endpointB.interval
 end
 
--- check for overlapping pairs when swapping endpoints
 local setPair = function (sap,obj1,obj2)
 	local ax1 = sap.objects[obj1].x0t.value
 	local ay1 = sap.objects[obj1].y0t.value
@@ -53,9 +51,6 @@ local setPair = function (sap,obj1,obj2)
 	end
 end
 
--- insertion sort collects objects into setMaintain
--- if endpoint is an upperbound, then remove object from setMaintain 
--- and check its with objects in setsCollide
 local processSets = function (sap,endpoint,setMaintain,setsCollide)
 	local obj1 = endpoint.obj
 	
@@ -72,12 +67,10 @@ local processSets = function (sap,endpoint,setMaintain,setsCollide)
 end
 
 local swapCallback = function(sap,endpoint2,endpoint)
-	-- [0 ep2 1] [0 ep1 1] pre swap
 	local obj1,obj2 = endpoint.obj,endpoint2.obj
 	if endpoint.interval == 0 and endpoint2.interval == 1 then 
 		setPair(sap,obj1,obj2)
 		
-	-- [0 ep2 [0  1] ep1 1] pre swap
 	elseif endpoint.interval == 1 and endpoint2.interval == 0 then
 		sap.paired[obj1][obj2] = nil
 		sap.paired[obj2][obj1] = nil		
@@ -95,7 +88,6 @@ local insertSort = function(sap,list,i)
 	list[k+1] = v
 end
 
--- sap loop
 local SweepAndPrune = function (sap,axis,intervalT,bufferT,deletebuffer)
 	local setInsert,setInterval
 	
@@ -106,7 +98,6 @@ local SweepAndPrune = function (sap,axis,intervalT,bufferT,deletebuffer)
 		local endpoint    = intervalT[i]
 		local newEndpoint = bufferT[1]
 		
-		-- prioritize deletion and insertion events first
 		if deletebuffer[endpoint.obj] then
 			remove(intervalT,i)
 		elseif newEndpoint and deletebuffer[newEndpoint.obj] then
@@ -122,7 +113,6 @@ local SweepAndPrune = function (sap,axis,intervalT,bufferT,deletebuffer)
 			i = i + 1
 		
 		else
-			-- insertion sort block
 		
 			if bufferT[1] and axis == 'y' then
 				processSets(sap,endpoint,setInterval,{setInsert})
@@ -132,7 +122,6 @@ local SweepAndPrune = function (sap,axis,intervalT,bufferT,deletebuffer)
 			i = i + 1
 		end
 	end
-	-- insert the rest of the new endpoints
 	while bufferT[1] do
 		local newEndpoint = bufferT[1]
 		if newEndpoint and deletebuffer[newEndpoint.obj] then
@@ -182,7 +171,7 @@ s.add = function (self,obj,x0,y0,x1,y1)
 		
 		self.paired[obj] = {}
 		
-		insert(self.xbuffer,x0t) -- batch insertion buffer
+		insert(self.xbuffer,x0t)
 		insert(self.ybuffer,y0t)
 		insert(self.xbuffer,x1t)
 		insert(self.ybuffer,y1t)
@@ -196,7 +185,11 @@ s.delete = function (self,obj)
 	self.deletebuffer[obj] = obj 
 end
 
-s._delCallback = function(self)
+s.update = function (self)
+	sort(self.xbuffer,isSorted)
+	sort(self.ybuffer,isSorted)
+	SweepAndPrune (self,'x',self.xintervals,self.xbuffer,self.deletebuffer)
+	SweepAndPrune (self,'y',self.yintervals,self.ybuffer,self.deletebuffer)
 	for obj in pairs(self.deletebuffer) do
 		for obj2 in pairs(self.paired[obj]) do
 			self.paired[obj2][obj] = nil
@@ -205,14 +198,6 @@ s._delCallback = function(self)
 		self.objects[obj]       = nil
 		self.deletebuffer[obj]  = nil
 	end	
-end
-
-s.update = function (self)
-	sort(self.xbuffer,isSorted)
-	sort(self.ybuffer,isSorted)
-	SweepAndPrune (self,'x',self.xintervals,self.xbuffer,self.deletebuffer)
-	SweepAndPrune (self,'y',self.yintervals,self.ybuffer,self.deletebuffer)
-	self:_delCallback()
 end
 
 s.query = function (self,obj)
