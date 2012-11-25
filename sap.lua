@@ -1,5 +1,5 @@
 --[[
-sweepandprune.lua v1.44
+sap.lua v1.45
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -38,7 +38,7 @@ local isSorted = function (endpointA,endpointB)
 	endpointA.interval < endpointB.interval
 end
 
--- check for overlapping pairs when swapping endpoints
+-- check and set overlapping pairs when swapping endpoints
 local setPair = function (sap,obj1,obj2)
 	local ax1 = sap.objects[obj1].x0t.value
 	local ay1 = sap.objects[obj1].y0t.value
@@ -58,7 +58,7 @@ end
 
 -- insertion sort collects objects into setMaintain
 -- if endpoint is an upperbound, then remove object from setMaintain 
--- and check its with objects in setsCollide
+-- and check it with objects in setsCollide
 local processSets = function (sap,endpoint,setMaintain,setsCollide)
 	local obj1 = endpoint.obj
 	
@@ -149,8 +149,8 @@ local SweepAndPrune = function (sap,axis,intervalT,bufferT,deletebuffer)
 			
 			i = i + 1
 		
+		-- insertion sort block
 		else
-			-- insertion sort block
 			if checkStab then setStabs(intervalT,i) end
 		
 			if bufferT[1] and axis == 'y' then
@@ -234,7 +234,8 @@ local iterStabs = function(state,i)
 		if ep.interval == 0 and not skip[obj] then 
 			state.stabs = state.stabs - 1
 			return i,obj
-		else skip[obj] = true end
+		end
+		skip[obj] = true
 	end
 end
 
@@ -277,7 +278,7 @@ local incrementRay = function(i,d,ti,t,dRatio,sideCheck,step,multiset)
 		multiset[obj] = 0
 	end
 	
-	-- update the ratio and index for the next step
+	-- update the ratio and index for the next endpoint
 	ti     = ti + step
 	local v= t[ti] and t[ti].value or step*huge
 	dRatio = (v-i)/d
@@ -299,6 +300,7 @@ s.move = function (self,obj,x0,y0,x1,y1)
 	self.objects[obj].y1t.value = y1
 end
 
+-- adding cancels deletion
 s.add = function (self,obj,x0,y0,x1,y1)
 	self.deletebuffer[obj] = nil
 	if not self.objects[obj] then
@@ -330,7 +332,11 @@ s.delete = function (self,obj)
 	self.deletebuffer[obj] = obj 
 end
 
-s._delCallback = function(self)
+s.update = function (self)
+	sort(self.xbuffer,isSorted)
+	sort(self.ybuffer,isSorted)
+	SweepAndPrune (self,'x',self.xintervals,self.xbuffer,self.deletebuffer)
+	SweepAndPrune (self,'y',self.yintervals,self.ybuffer,self.deletebuffer)
 	for obj in pairs(self.deletebuffer) do
 		for obj2 in pairs(self.paired[obj]) do
 			self.paired[obj2][obj] = nil
@@ -342,14 +348,6 @@ s._delCallback = function(self)
 	end	
 end
 
-s.update = function (self)
-	sort(self.xbuffer,isSorted)
-	sort(self.ybuffer,isSorted)
-	SweepAndPrune (self,'x',self.xintervals,self.xbuffer,self.deletebuffer)
-	SweepAndPrune (self,'y',self.yintervals,self.ybuffer,self.deletebuffer)
-	self:_delCallback()
-end
-
 s.query = function (self,obj)
 	local t = {}
 	for obj2 in pairs(self.paired[obj]) do
@@ -359,11 +357,11 @@ s.query = function (self,obj)
 end
 
 s.areaQuery = function(self,x0,y0,x1,y1,enclosed)
-	-- endpoint's score outside of area = 1
-	-- endpoint's score inside of area = 2
-	local minScore     = enclosed and 3 or 0
+	-- Obj needs x score > 1 and y score > 1 for overlap
+	-- Obj needs x score > 3 and y score > 3 for containment
+	local minScore  = enclosed and 3 or 0
 	local xset,yset = {},{}
-	local xt,yt = self.xintervals,self.yintervals
+	local xt,yt     = self.xintervals,self.yintervals
 	-- find leftmost index > x0 and y0
 	local _,xi = binsearch(xt,x0)
 	local _,yi = binsearch(yt,y0)
@@ -376,12 +374,12 @@ s.areaQuery = function(self,x0,y0,x1,y1,enclosed)
 	while xt[xi] and xt[xi].value <= x1 do
 		local obj = xt[xi].obj
 		xset[obj] = xset[obj] and xset[obj]+2 or 2
-		xi = xi + 1
+		xi        = xi + 1
 	end
 	while yt[yi] and yt[yi].value <= y1 do
 		local obj = yt[yi].obj
 		yset[obj] = yset[obj] and yset[obj]+2 or 2
-		yi = yi + 1
+		yi        = yi + 1
 	end
 	for obj in pairs(xset) do
 		if yset[obj] and xset[obj] > minScore and yset[obj] > minScore then
@@ -406,11 +404,11 @@ s.pointQuery = function(self,x,y)
 	return yset
 end
 
--- Raycast through a voxel grid
 s.rayQuery = function(self,x,y,x2,y2)
 	return self:iterRay(x,y,x2,y2)()
 end
 
+-- DDA algorithm for raycasting
 s.iterRay = function(self,x,y,x2,y2)
 	local dx,dy = x2-x,y2-y
 	local xt,yt = self.xintervals,self.yintervals
@@ -424,7 +422,6 @@ s.iterRay = function(self,x,y,x2,y2)
 		-- check for internal hit or add to set for obj's with intervals containing ray's origin
 		-- internal hit does not return point of contact
 		if not obj then
-		
 			for i,obj in iterateStabs(xt,xi+xSideCheck) do
 				multiset[obj] = multiset[obj] and multiset[obj]+1 or 1
 			end
@@ -433,8 +430,7 @@ s.iterRay = function(self,x,y,x2,y2)
 				if multiset[obj] > 1 then
 					return obj
 				end
-			end
-			
+			end		
 		end
 		
 		while minRatio <= 1 do
@@ -451,7 +447,7 @@ s.iterRay = function(self,x,y,x2,y2)
 		end
 	end
 end
-	
+
 s.new = function()
 	return setmetatable({
 			xintervals   = {},

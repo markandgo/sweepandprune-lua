@@ -1,5 +1,5 @@
 --[[
-sapgrid.lua v1.44
+sapgrid.lua v1.45
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -25,66 +25,61 @@ PRIVATE
 ===================
 --]]
 
+-- default settings
+local DEFAULT_CELL_WIDTH  = 100
+local DEFAULT_CELL_HEIGHT = 100
+local MAX_POOL_SIZE       = 20
+
 local insert  = table.insert
 local floor   = math.floor
 local ceil    = math.ceil
 local max     = function(a,b) return a > b and a or b end
 local setmt   = setmetatable
-
-local huge  = math.huge
-local wrap  = coroutine.wrap
-local yield = coroutine.yield
+local huge    = math.huge
+local wrap    = coroutine.wrap
+local yield   = coroutine.yield
 
 local path  = (...):match('^.*[%.%/]') or ''
-local sap   = require(path .. 'sweepandprune')
+local sap   = require(path .. 'sap')
 
 local weakValues = {__mode = 'v'}
-
-local DEFAULT_CELL_WIDTH  = 100
-local DEFAULT_CELL_HEIGHT = 100
-local MAX_POOL_SIZE       = 10
+local pool       = {count = 0}
 
 -- change behavior of adding boxes to each sap
 local sap_add = function (sap,objT)
-	local obj               = objT.x0t.obj
-	sap.deletebuffer[obj]  = nil
-	if not sap.objects[obj] then
-		sap.paired[obj]  = {}
-		-- setup proxy tables
-		sap.objects[obj] = setmt({},objT)
-		insert(sap.xbuffer,setmt({stabs = 0},objT.x0t))
-		insert(sap.ybuffer,setmt({stabs = 0},objT.y0t))
-		insert(sap.xbuffer,setmt({stabs = 0},objT.x1t))
-		insert(sap.ybuffer,setmt({stabs = 0},objT.y1t))
-	end
+	local obj             = objT.x0t.obj
+	sap.deletebuffer[obj] = nil
+	if sap.objects[obj] then return end
+	sap.paired[obj]  = {}
+	-- setup proxy tables
+	sap.objects[obj] = setmt({},objT)
+	insert(sap.xbuffer,setmt({stabs = 0},objT.x0t))
+	insert(sap.ybuffer,setmt({stabs = 0},objT.y0t))
+	insert(sap.xbuffer,setmt({stabs = 0},objT.x1t))
+	insert(sap.ybuffer,setmt({stabs = 0},objT.y1t))
 end
 
 -- reuse SAP instance
-local toSAPpool = function(grid,sap)
-	local pool = grid.SAPpool
-	if not next(sap.objects) and pool.count < MAX_POOL_SIZE then
-		pool[ pool.count+1 ] = sap
-		pool.count    = pool.count + 1
-		sap.parent[1][ sap.parent[2] ] = nil
-		sap.parent[1] = nil
-		sap.parent[2] = nil
-	end
+local toPool = function(sap)
+	local count = pool.count
+	if next(sap.objects) or count >= MAX_POOL_SIZE then return end
+	pool[count+1] = sap
+	pool.count    = count + 1
+	sap.row[sap.x]= nil
 end
 
-local getSpareSAP = function(pool,yt,keyToSap)
-	local s = pool[ pool.count ]
-	if s then
-		pool[ pool.count ] = nil
-		pool.count    = pool.count - 1
-		s.parent[1]   = yt
-		s.parent[2]   = keyToSap
-		return s
+-- pull from pool if available
+local sap   = function(row,x)
+	local count = pool.count
+	local s     = pool[count]
+	if s then 
+		pool[count] = nil
+		pool.count  = count - 1
+		s.row,s.x   = row,x
+		return s	
 	end
-end
-
-local sap   = function(grid,yt,k)
-	local s   = getSpareSAP(grid.SAPpool,yt,k) or sap()
-	s.parent  = not s.parent and {yt,k} or s.parent
+	s         = sap()
+	s.row,s.x = row,x
 	return s
 end  
 
@@ -151,7 +146,7 @@ g.move = function (self,obj,x0,y0,x1,y1)
 		local row     = self.cells[y] or setmt({},weakValues)
 		self.cells[y] = row
 		for x = gx0,gx1 do
-			local sap = row[x] or sap(self,row,x)
+			local sap = row[x] or sap(row,x)
 			row[x]    = sap
 			-- row/sap reference to prevent garbage collecting
 			rows[sap] = row 
@@ -161,6 +156,7 @@ g.move = function (self,obj,x0,y0,x1,y1)
 	end	
 end
 
+-- adding cancels deletion
 g.add = function (self,obj,x0,y0,x1,y1)	
 	self.deletebuffer[obj] = nil
 	if not self.objects[obj] then
@@ -184,7 +180,6 @@ g.add = function (self,obj,x0,y0,x1,y1)
 		x1t.__index   = x1t
 		y1t.__index   = y1t
 		objT.__index  = objT
-		
 	end
 	self:move(obj,x0,y0,x1,y1)
 	return obj
@@ -192,23 +187,23 @@ end
 
 g.delete = function (self,obj)
 	self.deletebuffer[obj] = obj
-	for sap in pairs(self.objects[obj].rows) do
-		sap:delete(obj)
-		self.activeSAP[sap] = true
-	end
 end
 
 g.update = function (self)
+	for obj in pairs(self.deletebuffer) do
+		for sap in pairs(self.objects[obj].rows) do
+			sap:delete(obj)
+			self.activeSAP[sap] = true
+		end
+		self.objects[obj]       = nil
+		self.deletebuffer[obj]  = nil
+	end
 	-- only update active cells
 	-- A cell is active when there is an add,delete, or move operation called for each sap
 	for sap in pairs(self.activeSAP) do
 		sap:update()
-		toSAPpool(self,sap)
+		toPool(sap)
 		self.activeSAP[sap] = nil
-	end
-	for obj in pairs(self.deletebuffer) do
-		self.objects[obj]       = nil
-		self.deletebuffer[obj]  = nil
 	end
 end
 
@@ -248,15 +243,15 @@ end
 g.pointQuery = function(self,x,y)
 	local gx    = floor(x/self.width)
 	local gy    = floor(y/self.height)
-	if self.cells[gy] and self.cells[gy][gx] then
-		return self.cells[gy][gx]:pointQuery(x,y)
-	end
+	local row   = self.cells[gy]
+	return row and row[gx] and row[gx]:pointQuery(x,y) or {}
 end
 
 g.rayQuery = function(self,x,y,x2,y2)
 	return self:iterRay(x,y,x2,y2)()
 end
 
+-- DDA algorithm through the grid
 g.iterRay = function(self,x,y,x2,y2)
 	return wrap(function()
 		local dxRatio,xDelta,xStep,gx = initRayData(self.width,x,x2)
@@ -286,17 +281,26 @@ g.iterRay = function(self,x,y,x2,y2)
 	end)
 end
 
+-- draw grid lines in LOVE
 g.draw = function(self)
+	local w,h = self.width,self.height
+	local f   = love.graphics.getFont()
+	local fh  = f and f:getHeight() or 14
 	for y,t in pairs(self.cells) do
 		for x,sap in pairs(t) do
-			love.graphics.rectangle('line',x*self.width,y*self.height,self.width,self.height)
-			love.graphics.print(x .. ',' .. y,x*self.width,y*self.height)
-			love.graphics.print(#sap.xintervals/2,x*self.width,y*self.height+self.height-15)
+			local rx,ry = x*self.width,y*self.height
+			love.graphics.rectangle('line',rx,ry,w,h)
+			love.graphics.print(x .. ',' .. y,rx,ry)
+			love.graphics.print(#sap.xintervals/2,rx,ry+self.height-fh)
 		end
 	end
 end
 
-g.new = function(self,cell_width,cell_height)
+g.clearPool = function()
+	pool = {count = 0}
+end
+
+g.new = function(cell_width,cell_height)
 	return setmetatable({
 		width         = cell_width or DEFAULT_CELL_WIDTH,
 		height        = cell_height or DEFAULT_CELL_HEIGHT,
@@ -304,8 +308,7 @@ g.new = function(self,cell_width,cell_height)
 		objects       = {},
 		deletebuffer  = {},
 		activeSAP     = {},
-		SAPpool       = {count = 0},
 	},g)
 end
 
-return setmetatable(g,{__call = g.new})
+return setmt(g,{__call = function(g,...) return g.new(...) end})

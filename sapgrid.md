@@ -6,34 +6,52 @@ Internally, the module only updates the active cells in the grid. This is useful
 
 ## Usage
 
-**This module depends on sweepandprune.lua. Just place them in the same folder.**
+**This module depends on sap.lua. Just place them in the same folder.**
 
 SAP + grid shares the same methods with the stand alone SAP so see it's readme for documentation and examples.
 
 ---
-Create a new SAP+grid instance. The `cell_width`,and `cell_height` parameters are optional.
+Create a new SAP+grid instance. The `cell_width`,and `cell_height` parameters are optional. The cell width and height should be big enough to fit the average object for optimal performance.
 
 ````lua
 sapgrid = require'sapgrid'
-sapA    = sapgrid([,cell_width [,cell_height]])
+sapA    = sapgrid(cell_width,cell_height)
 ````
 
 ## Properties
 
-The cell width (default is `100`):
+The cell width:
 
 `sapA.width`
 
 ---
-The cell height (default is `100`:
+The cell height:
 
 `sapA.height`
+
+## Internal Settings
+
+The following properties are changeable in sapgrid.lua. Don't change them unless you know what you are doing!
+
+---
+`DEFAULT_CELL_WIDTH` is the default cell width for a new sapgrid instance.
+
+---
+`DEFAULT_CELL_HEIGHT` is the default cell height for a new sapgrid instance.
+
+---
+`MAX_POOL_SIZE` controls the max number of sap instances in the pool. Empty sap instances are placed in the pool instead of garbage collection. When a new grid cell is initialized, the cell reuses a sap in the pool instead of a new one. All sapgrid instances share the same pool.
 
 ## Functions
 
 Draw the cells in LOVE. Top number is the cell coordinates, and bottom number is the amount of objects/cell:
 
 `sapA:draw()`
+
+---
+Clear the pool. Call this function to clear it and allow garbage collection.
+
+`sapA.clearPool()`
 
 ## Example:
 	

@@ -8,7 +8,7 @@ Green when area query detects a box
 
 function love.load()
 	sap   = require 'sapgrid'
-	-- sap   = require 'sweepandprune'
+	-- sap   = require 'sap'
 	sapA  = sap(100,100)	
 	b1    = {x=0,y=0,w=100,h=100}
 	b2    = {x=250,y=250,w=100,h=100}

@@ -21,8 +21,6 @@ The world is divided into "cells", and each cell has its own SAP instance. Objec
 
 ## Note
 
-Check out the LOVE (+0.7.2) demo: [Download] (https://github.com/downloads/markandgo/sweepandprune-lua/sapDemo1.3a.love)
-
 Check out the main.lua example in the repo. There is also the simple branch that runs a bit faster than the master branch minus ray, area, and point queries.
 
 ## Resource
@@ -33,3 +31,7 @@ Based on the following papers:
 	by: Tracy, Buss, Woods
 *	I-Collide  
 	by: Cohen, Lin, Manocha, Ponamgi
+*	Box Casting: A Fast Broad Phase for Dynamic Collision Detection
+	by: Coumans,Bergen
+*	A Fast Voxel Traversal Algorithm for Ray Tracing
+	by: Amanatides,Woo

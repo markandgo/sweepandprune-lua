@@ -4,7 +4,7 @@
 
 Load the SAP library.
 
-`sap = require 'sweepandprune'`
+`sap = require 'sap'`
 
 ---
 Create a new SAP instance. Your SAP instance is your "world" where you place your axis aligned bounding boxes (AABB).
@@ -54,7 +54,7 @@ Query a point and return a list of all AABB's that contains the point.
 `list = sapA:pointQuery(x0,y0,x1,y1)`
 
 ---
-Shoot a ray from point `x0,y0` to `x1,y1` and return the first box that it touches and the point of contact. The ray will report any box that contains its origin as a collision and **NOT** its interal point of contact.
+Shoot a ray from point `x0,y0` to `x1,y1` and return the first box that it touches and the point of contact. The ray will report any box that contains its origin as a collision **WITHOUT** its interal point of contact.
 
 `obj,x,y = sapA:rayQuery(x0,y0,x1,y1)`
 
@@ -72,7 +72,7 @@ end
 **See main.lua for more examples...**
 
 ````lua
-sap 	= require 'sweepandprune'
+sap 	= require 'sap'
 sapA 	= sap()
 
 -- add two objects and their AABB's to our instance
