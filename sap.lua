@@ -128,16 +128,18 @@ local SweepAndPrune = function (sap,axis,intervalT,bufferT,deletebuffer)
 	local checkStab = setInsert or next(deletebuffer)
 	
 	local i = 1
+	local j = 1
 
 	while intervalT[i] do
 		local endpoint    = intervalT[i]
-		local newEndpoint = bufferT[1]
+		local newEndpoint = bufferT[j]
 		
 		-- prioritize deletion and insertion events first
 		if deletebuffer[endpoint.obj] then
 			remove(intervalT,i)
 		elseif newEndpoint and deletebuffer[newEndpoint.obj] then
-			remove(bufferT,1)
+			bufferT[j] = nil
+			j = j + 1
 		elseif newEndpoint and isSorted(newEndpoint,endpoint) then
 			if axis == 'y' then
 				processSets(sap,newEndpoint,setInsert,{setInsert,setInterval})
@@ -145,15 +147,15 @@ local SweepAndPrune = function (sap,axis,intervalT,bufferT,deletebuffer)
 			
 			insert(intervalT,i,newEndpoint)
 			setStabs(intervalT,i)
-			remove(bufferT,1)
+			bufferT[j] = nil
 			
 			i = i + 1
-		
+			j = j + 1
 		-- insertion sort block
 		else
 			if checkStab then setStabs(intervalT,i) end
 		
-			if bufferT[1] and axis == 'y' then
+			if bufferT[j] and axis == 'y' then
 				processSets(sap,endpoint,setInterval,{setInsert})
 			end
 				
@@ -162,10 +164,10 @@ local SweepAndPrune = function (sap,axis,intervalT,bufferT,deletebuffer)
 		end
 	end
 	-- insert the rest of the new endpoints
-	while bufferT[1] do
-		local newEndpoint = bufferT[1]
+	while bufferT[j] do
+		local newEndpoint = bufferT[j]
 		if newEndpoint and deletebuffer[newEndpoint.obj] then
-			remove(bufferT,1)
+			bufferT[j] = nil
 		else
 			if axis == 'y' then
 				processSets(sap,newEndpoint,setInsert,{setInsert})
@@ -173,10 +175,11 @@ local SweepAndPrune = function (sap,axis,intervalT,bufferT,deletebuffer)
 			
 			insert(intervalT,i,newEndpoint)
 			setStabs(intervalT,i)
-			remove(bufferT,1)
+			bufferT[j] = nil
 			
 			i = i + 1
 		end
+		j = j + 1
 	end
 end
 
