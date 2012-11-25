@@ -121,21 +121,20 @@ end
 
 g.delete = function (self,obj)
 	self.deletebuffer[obj] = obj
-	
-	for sap in pairs(self.objects[obj].rows) do
-		sap:delete(obj)
-		self.activeSAP[sap] = true
-	end
 end
 
 g.update = function (self)
+	for obj in pairs(self.deletebuffer) do
+		for sap in pairs(self.objects[obj].rows) do
+			sap:delete(obj)
+			self.activeSAP[sap] = true
+		end
+		self.objects[obj]       = nil
+		self.deletebuffer[obj]  = nil
+	end
 	for sap in pairs(self.activeSAP) do
 		sap:update()
 		self.activeSAP[sap] = nil
-	end
-	for obj in pairs(self.deletebuffer) do
-		self.objects[obj]       = nil
-		self.deletebuffer[obj]  = nil
 	end
 end
 
