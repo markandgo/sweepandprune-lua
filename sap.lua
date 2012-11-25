@@ -225,22 +225,19 @@ local binsearch         = function( t,value)
 end
 
 -- iterate backward in the list and return stabbed endpoints
-local iterStabs = function(state,i)
-	while state.stabs > 0 do
-		i           = i-1
-		local t     = state[1]
-		local skip  = state.skip
-		local ep,obj= t[i],t[i].obj
-		if ep.interval == 0 and not skip[obj] then 
-			state.stabs = state.stabs - 1
-			return i,obj
-		end
-		skip[obj] = true
-	end
-end
-
 local iterateStabs = function(t,i)
-	return iterStabs,{t,skip = {},stabs = t[i] and t[i].stabs or 0},i
+	local skip,stabs = {},t[i] and t[i].stabs or 0
+	return function()
+		while stabs > 0 do
+			i            = i-1
+			local ep,obj = t[i],t[i].obj
+			if ep.interval == 0 and not skip[obj] then 
+				stabs = stabs - 1
+				return i,obj
+			end
+			skip[obj] = true
+		end
+	end
 end
 
 local addStabsToSet = function(intervalT,index,set)
