@@ -1,5 +1,5 @@
 --[[
-sap.lua v1.45
+sap.lua v1.45a
 
 Copyright (c) <2012> <Minh Ngo>
 

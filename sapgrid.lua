@@ -1,5 +1,5 @@
 --[[
-sapgrid.lua v1.45
+sapgrid.lua v1.45a
 
 Copyright (c) <2012> <Minh Ngo>
 
@@ -114,6 +114,35 @@ local initRayData = function(cell_width,i,f)
 	end
 	
 	return dRatio,Delta,Step,cell_i
+end
+
+local rayCallback = function(self,x,y,x2,y2,isCoroutine)
+	local dxRatio,xDelta,xStep,gx = initRayData(self.width,x,x2)
+	local dyRatio,yDelta,yStep,gy = initRayData(self.height,y,y2)
+	local set,cells = {},self.cells
+	local smallest
+	-- Use a repeat loop so that the ray checks its starting cell
+	repeat
+		local row = cells[gy]
+		if row and row[gx] then
+			for obj,x,y in row[gx]:iterRay(x,y,x2,y2) do
+				if not set[obj] then 
+					if isCoroutine then yield(obj,x,y) else return obj,x,y end
+				end
+				set[obj] = true
+			end
+		end
+		
+		if dxRatio < dyRatio then
+			smallest  = dxRatio
+			dxRatio   = dxRatio + xDelta
+			gx        = gx + xStep
+		else
+			smallest  = dyRatio
+			dyRatio   = dyRatio + yDelta
+			gy        = gy + yStep
+		end
+	until smallest > 1
 end
 
 --[[
@@ -248,37 +277,12 @@ g.pointQuery = function(self,x,y)
 end
 
 g.rayQuery = function(self,x,y,x2,y2)
-	return self:iterRay(x,y,x2,y2)()
+	return rayCallback(self,x,y,x2,y2)
 end
 
 -- DDA algorithm through the grid
 g.iterRay = function(self,x,y,x2,y2)
-	return wrap(function()
-		local dxRatio,xDelta,xStep,gx = initRayData(self.width,x,x2)
-		local dyRatio,yDelta,yStep,gy = initRayData(self.height,y,y2)
-		local set,cells = {},self.cells
-		local smallest
-		-- Use a repeat loop so that the ray checks its starting cell
-		repeat
-			local row = cells[gy]
-			if row and row[gx] then
-				for obj,x,y in row[gx]:iterRay(x,y,x2,y2) do
-					if not set[obj] then yield(obj,x,y) end
-					set[obj] = true
-				end
-			end
-			
-			if dxRatio < dyRatio then
-				smallest  = dxRatio
-				dxRatio   = dxRatio + xDelta
-				gx        = gx + xStep
-			else
-				smallest  = dyRatio
-				dyRatio   = dyRatio + yDelta
-				gy        = gy + yStep
-			end
-		until smallest > 1
-	end)
+	return wrap(function() rayCallback(self,x,y,x2,y2,true) end)
 end
 
 -- draw grid lines in LOVE
