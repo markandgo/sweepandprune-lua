@@ -1,7 +1,7 @@
 --[[
-sap.lua v1.45a
+sap.lua v1.45b
 
-Copyright (c) <2012> <Minh Ngo>
+Copyright (c) 2013 <Minh Ngo>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software 
 and associated documentation files (the "Software"), to deal in the Software without 
@@ -22,7 +22,7 @@ local insert  = table.insert
 local remove  = table.remove
 local sort    = table.sort
 local pairs   = pairs
-local min     = function(a,b) return a < b and a or b end
+local min     = math.min
 local huge    = math.huge
 
 --[[

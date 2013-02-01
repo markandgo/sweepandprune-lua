@@ -1,7 +1,7 @@
 --[[
-sapgrid.lua v1.45a
+sapgrid.lua v1.45b
 
-Copyright (c) <2012> <Minh Ngo>
+Copyright (c) 2013 <Minh Ngo>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software 
 and associated documentation files (the "Software"), to deal in the Software without 
@@ -33,7 +33,7 @@ local MAX_POOL_SIZE       = 20
 local insert  = table.insert
 local floor   = math.floor
 local ceil    = math.ceil
-local max     = function(a,b) return a > b and a or b end
+local max     = math.max
 local setmt   = setmetatable
 local huge    = math.huge
 local wrap    = coroutine.wrap
