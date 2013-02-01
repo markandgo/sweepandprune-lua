@@ -22,6 +22,8 @@ function love.update(dt)
 	b1.x,b1.y = love.mouse.getPosition()
 	sapA:move(b1,b1.x,b1.y,b1.x+b1.w,b1.y+b1.h)
 	sapA:update()
+	if next(sapA:query(b1)) then b1.color = red else b1.color = white end
+	if next(sapA:query(b2)) then b2.color = red else b2.color = white end
 end
 
 function love.draw()
@@ -29,8 +31,6 @@ function love.draw()
 	sapA:draw() -- draw grid
 	love.graphics.setColor(255,255,255)
 	
-	if next(sapA:query(b1)) then b1.color = red else b1.color = white end
-	if next(sapA:query(b2)) then b2.color = red else b2.color = white end
 	love.graphics.setColor(b1.color)
 	-- draw rect that follows mouse
 	love.graphics.rectangle('line',b1.x,b1.y,b1.w,b1.h)

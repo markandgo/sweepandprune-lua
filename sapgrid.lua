@@ -1,7 +1,7 @@
 --[[
 sapgrid.lua
 
-Copyright (c) <2012> <Minh Ngo>
+Copyright (c) 2013 <Minh Ngo>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software 
 and associated documentation files (the "Software"), to deal in the Software without 
@@ -28,7 +28,7 @@ INITIAL STUFF
 local insert  = table.insert
 local floor   = math.floor
 local ceil    = math.ceil
-local max     = function(a,b) return a > b and a or b end
+local max     = math.max
 local setmt   = setmetatable
 
 local path    = (...):match('^.*[%.%/]') or ''
