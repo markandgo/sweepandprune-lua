@@ -1,5 +1,5 @@
 --[[
-sapgrid.lua v1.45b
+sapgrid.lua v1.45c
 
 Copyright (c) 2013 <Minh Ngo>
 
@@ -86,8 +86,8 @@ end
 local toGridCoordinates = function(grid,x0,y0,x1,y1)
 	local gx0 = floor(x0/grid.width)
 	local gy0 = floor(y0/grid.height)
-	local gx1 = max(ceil(x1/grid.width)-1,gx0)
-	local gy1 = max(ceil(y1/grid.height)-1,gy0)
+	local gx1 = ceil(x1/grid.width)-1
+	local gy1 = ceil(y1/grid.height)-1
 	return gx0,gy0,gx1,gy1
 end
 
