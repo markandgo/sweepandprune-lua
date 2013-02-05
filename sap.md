@@ -4,7 +4,7 @@
 
 Load the SAP library.
 
-`sap = require 'sweepandprune'`
+`sap = require 'sap'`
 
 ---
 Create a new SAP instance. Your SAP instance is your "world" where you place your axis aligned bounding boxes (AABB).
@@ -13,7 +13,7 @@ Create a new SAP instance. Your SAP instance is your "world" where you place you
 
 ## Functions
 
-Add a new AABB with the given ID where x0 <= x1 and y0 <= y1 and return the ID. The ID can be any Lua value (except `nil`).
+Add a new AABB with the given ID where `x0`,`y0` is the top left corner and `x1`,`y1` is the bottom right corner and return the ID. The ID can be any Lua value (except `nil`).
 
 `id = sapA:add(id,x0,y0,x1,y1)`
 
@@ -23,17 +23,17 @@ Update the position of the AABB for the given ID.
 `sapA:move(id,x0,y0,x1,y1)`
 
 ---
-Delete the AABB for the given ID. Deletion is guaranteed unless add is called before the next update call.
+Mark the AABB for deletion on the next update. Calling `add` for the same ID overrides deletion.
 
 `sapA:delete(id)`
 
 ---
-Update the SAP instance. Intersecting AABB pairs are not updated from add, move, or delete calls until this is called.
+Update overlapping pairs in the SAP instance from `add`,`move`, or `delete` calls.
 
 `sapA:update()`
 
 ---
-Query and return a list of all AABB's that intersect with the given ID.
+Query and return a list of all AABB's overlaping with the given ID.
 
 ````lua 
 list = sapA:query(id)
