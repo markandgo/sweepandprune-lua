@@ -67,9 +67,9 @@ g.move = function (self,obj,x0,y0,x1,y1)
 	self.objects[obj].x1t.value = x1
 	self.objects[obj].y1t.value = y1
 	local cell_x0 = floor(x0/self.width)
-	local cell_x1 = max(ceil(x1/self.width)-1,cell_x0)
+	local cell_x1 = ceil(x1/self.width)-1
 	local cell_y0 = floor(y0/self.height)
-	local cell_y1 = max(ceil(y1/self.height)-1,cell_y0)
+	local cell_y1 = ceil(y1/self.height)-1
 	
 	local rows = self.objects[obj].rows
 	for sap in pairs(rows) do 
