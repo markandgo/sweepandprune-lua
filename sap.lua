@@ -1,5 +1,5 @@
 --[[
-sap.lua v1.45b
+sap.lua v1.46
 
 Copyright (c) 2013 <Minh Ngo>
 
@@ -34,8 +34,10 @@ PRIVATE
 -- comparison function for insertion sort
 local isSorted = function (endpointA,endpointB)
 	return endpointA.value < endpointB.value or 
-	endpointA.value == endpointB.value and 
-	endpointA.interval < endpointB.interval
+	endpointA.value == endpointB.value and
+	(endpointA.obj == endpointB.obj and 
+	endpointA.interval < endpointB.interval or
+	endpointA.interval > endpointB.interval)
 end
 
 -- check and set overlapping pairs when swapping endpoints
@@ -50,7 +52,7 @@ local setPair = function (sap,obj1,obj2)
 	local bx2 = sap.objects[obj2].x1t.value
 	local by2 = sap.objects[obj2].y1t.value
 
-	if ax1 <= bx2 and ax2 >= bx1 and ay1 <= by2 and ay2 >= by1 then
+	if ax1 < bx2 and ax2 > bx1 and ay1 < by2 and ay2 > by1 then
 		sap.paired[obj1][obj2] = obj2
 		sap.paired[obj2][obj1] = obj1
 	end

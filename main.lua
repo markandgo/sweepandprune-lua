@@ -34,14 +34,14 @@ function love.update(dt)
 	b1.x,b1.y = love.mouse.getPosition()
 	sapA:move(b1,b1.x,b1.y,b1.x+b1.w,b1.y+b1.h)
 	sapA:update()
-	-----------------
+	---------------------------------------------------------------------------------------
 	-- queries
 	a1      = sapA:areaQuery(b3.x,b3.y,b3.x+b3.w,b3.y+b3.h,true) -- enclosed boxes only
 	a2      = sapA:areaQuery(b4.x,b4.y,b4.x+b4.w,b4.y+b4.h)
 	p       = sapA:pointQuery(400,400)
 	if next(sapA:query(b1)) then b1.color = red else b1.color = white end
 	if next(sapA:query(b2)) then b2.color = red else b2.color = white end
-	
+	---------------------------------------------------------------------------------------
 	-- collect hits for ray iterator
 	hits    = {}
 	r2hit   = nil
@@ -65,53 +65,58 @@ end
 
 function love.draw()
 	love.graphics.setColor(100,100,100)
-	sapA:draw() -- draw grid
+	if sapA.draw then sapA:draw() end
 	love.graphics.setColor(255,255,255)
 
+	-- draw boxes
 	love.graphics.setColor(b1.color)
-	-- draw rect that follows mouse
 	love.graphics.rectangle('line',b1.x,b1.y,b1.w,b1.h)
 	love.graphics.setColor(b2.color)
-	-- draw static rect
 	love.graphics.rectangle('line',b2.x,b2.y,b2.w,b2.h)
-	-----------------
-	if a1 and next(a1) then -- color for area query
+	---------------------------------------------------------------------------------------
+	-- draw area query (enclosed)
+	if a1 and next(a1) then
 		love.graphics.setColor(green)
 	else
 		love.graphics.setColor(white)
 	end
-	-- draw query area
 	love.graphics.rectangle('line',b3.x,b3.y,b3.w,b3.h)
-	-----------------
+	love.graphics.print('area query (enclosed only)',b3.x,b3.y)
+	---------------------------------------------------------------------------------------
+	-- draw area query
 	if a2 and next(a2) then -- color for area query
 		love.graphics.setColor(green)
 	else
 		love.graphics.setColor(white)
 	end
-	-- draw query area
 	love.graphics.rectangle('line',b4.x,b4.y,b4.w,b4.h)
-	-----------------
-	-- draw point
-	if p and next(p) then -- color for point query
+	love.graphics.print('area query',b4.x,b4.y)
+	---------------------------------------------------------------------------------------
+	-- draw point query
+	if p and next(p) then
 		love.graphics.setColor(red)
 	else
 		love.graphics.setColor(white)
 	end
 	love.graphics.circle('fill',400,400,5)
-	-----------------
-	-- returns in order all objects that intersects the line
+	love.graphics.print('point query',400,400)
+	---------------------------------------------------------------------------------------
+	-- print boxes hit by ray iterator
 	for i,t in ipairs(hits) do
 		if t[2] and t[3] then love.graphics.print('hit:' .. i,t[2],t[3]) end
 	end
-	-----------------
-	-- draw ray
+	---------------------------------------------------------------------------------------
+	-- draw one shot ray
 	love.graphics.setColor(white)	
 	if rhit then love.graphics.setColor(red) end
 	love.graphics.line(line[1],line[2],rx or line[3],ry or line[4])
-	-----------------
-	-- draw ray
+	love.graphics.print('one shot ray',line[1],line[2])
+	---------------------------------------------------------------------------------------
+	-- draw ray iterator
 	love.graphics.setColor(white)	
 	if r2hit then love.graphics.setColor(red) end
 	love.graphics.line(line2[1],line2[2],line2[3],line2[4])
-	-----------------
+	love.graphics.print('ray iterator',line2[1],line2[2])
+	---------------------------------------------------------------------------------------
+	love.graphics.print('Left or right mouse to change ray direction',0,0)
 end

@@ -13,7 +13,7 @@ Create a new SAP instance. Your SAP instance is your "world" where you place you
 
 ## Functions
 
-Add a new AABB with the given ID where x0 <= x1 and y0 <= y1 and return the ID. The ID can be any Lua value (except `nil`).
+Add a new AABB with the given ID where `x0`,`y0` is the top left corner and `x1`,`y1` is the bottom right corner and return the ID. The ID can be any Lua value (except `nil`).
 
 `id = sapA:add(id,x0,y0,x1,y1)`
 
@@ -23,17 +23,17 @@ Update the position of the AABB for the given ID.
 `sapA:move(id,x0,y0,x1,y1)`
 
 ---
-Delete the AABB for the given ID. The AABB will be deleted in the next update unless add is called beforehand.
+Mark the AABB for deletion on the next update. Calling `add` for the same ID overrides deletion.
 
 `sapA:delete(id)`
 
 ---
-Update the SAP instance. Intersecting AABB pairs are not updated until this function is called! This includes `add`, `delete`, and `move` operations!
+Update overlapping pairs in the SAP instance from `add`,`move`, or `delete` calls.
 
 `sapA:update()`
 
 ---
-Query and return a list of all AABB's that intersect with the given ID.
+Query and return a list of all AABB's overlaping with the given ID.
 
 ````lua 
 list = sapA:query(id)
@@ -44,12 +44,12 @@ end
 ````
 
 ---
-Query an area and return a list of all AABB's that overlaps with the area. If `enclosed` is passed as `true`, then return a list of enclosed boxes only.
+Query an area and return a list of all AABB's overlapping with the area. If `enclosed` is passed as `true`, then return a list of enclosed boxes only.
 
 `list = sapA:areaQuery(x0,y0,x1,y1[,enclosed])`
 
 ---
-Query a point and return a list of all AABB's that contains the point.
+Query a point and return a list of all AABB's containing the point.
 
 `list = sapA:pointQuery(x0,y0,x1,y1)`
 
