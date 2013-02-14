@@ -46,12 +46,19 @@ function love.update(dt)
 	hits    = {}
 	r2hit   = nil
 	local i = 1
-	for obj,x,y in sapA:iterRay(unpack(line2)) do
+	for obj,t in sapA:iterRay(unpack(line2)) do
+		local x,y   = line2[1],line2[2]
+		local dx,dy = line2[3]-x,line2[4]-y
 		r2hit   = true
-		hits[i] = {obj,x,y}
+		hits[i] = {obj,x+t*dx,y+t*dy}
 		i       = i + 1
 	end
-	rhit,rx,ry = sapA:rayQuery(unpack(line))
+	local x,y   = line[1],line[2]
+	local dx,dy = line[3]-x,line[4]-y
+	local t
+	rx,ry = nil
+	rhit,t = sapA:rayQuery(unpack(line))
+	if rhit then rx,ry = x+t*dx,y+t*dy end
 end
 
 function love.mousepressed(x,y,k)

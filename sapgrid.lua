@@ -1,5 +1,5 @@
 --[[
-sapgrid.lua v1.45c
+sapgrid.lua v1.47
 
 Copyright (c) 2013 <Minh Ngo>
 
@@ -125,9 +125,9 @@ local rayCallback = function(self,x,y,x2,y2,isCoroutine)
 	repeat
 		local row = cells[gy]
 		if row and row[gx] then
-			for obj,x,y in row[gx]:iterRay(x,y,x2,y2) do
+			for obj,t in row[gx]:iterRay(x,y,x2,y2) do
 				if not set[obj] then 
-					if isCoroutine then yield(obj,x,y) else return obj,x,y end
+					if isCoroutine then yield(obj,x,y) else return obj,t end
 				end
 				set[obj] = true
 			end

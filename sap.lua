@@ -1,5 +1,5 @@
 --[[
-sap.lua v1.46
+sap.lua v1.47
 
 Copyright (c) 2013 <Minh Ngo>
 
@@ -422,7 +422,7 @@ s.iterRay = function(self,x,y,x2,y2)
 		local minRatio = min(dxRatio,dyRatio)
 		
 		-- check for internal hit or add to set for obj's with intervals containing ray's origin
-		-- internal hit does not return point of contact
+		-- internal hit return time 0
 		if not obj then
 			for i,obj in iterateStabs(xt,xi+xSideCheck) do
 				multiset[obj] = multiset[obj] and multiset[obj]+1 or 1
@@ -430,7 +430,7 @@ s.iterRay = function(self,x,y,x2,y2)
 			for i,obj in iterateStabs(yt,yi+ySideCheck) do
 				multiset[obj] = multiset[obj] and multiset[obj]+1 or 1
 				if multiset[obj] > 1 then
-					return obj
+					return obj,0
 				end
 			end		
 		end
@@ -444,7 +444,7 @@ s.iterRay = function(self,x,y,x2,y2)
 				obj  = yt[yi].obj
 				yi,dyRatio = incrementRay(y,dy,yi,yt,dyRatio,ySideCheck,yStep,multiset)
 			end
-			if multiset[obj] > 1 then return obj,x+minRatio*dx,y+minRatio*dy end
+			if multiset[obj] > 1 then return obj,minRatio end
 			minRatio = min(dxRatio,dyRatio)
 		end
 	end
