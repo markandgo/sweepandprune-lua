@@ -247,7 +247,7 @@ g.query = function (self,obj)
 	return list
 end
 
-g.areaQuery = function(self,x0,y0,x1,y1,mode)
+g.queryArea = function(self,x0,y0,x1,y1,mode)
 	local list            = {}
 	local gx0,gy0,gx1,gy1 = toGridCoordinates(self,x0,y0,x1,y1)
 	-- for each cell the area touches...
@@ -258,7 +258,7 @@ g.areaQuery = function(self,x0,y0,x1,y1,mode)
 		
 			if row and row[x] then
 				-- for each sap in each cell...
-				for obj2 in pairs(row[x]:areaQuery(x0,y0,x1,y1,mode)) do
+				for obj2 in pairs(row[x]:queryArea(x0,y0,x1,y1,mode)) do
 					list[obj2] = obj2
 				end
 			end
@@ -269,14 +269,14 @@ g.areaQuery = function(self,x0,y0,x1,y1,mode)
 	return list
 end
 
-g.pointQuery = function(self,x,y)
+g.queryPoint = function(self,x,y)
 	local gx    = floor(x/self.width)
 	local gy    = floor(y/self.height)
 	local row   = self.cells[gy]
-	return row and row[gx] and row[gx]:pointQuery(x,y) or {}
+	return row and row[gx] and row[gx]:queryPoint(x,y) or {}
 end
 
-g.rayQuery = function(self,x,y,x2,y2)
+g.queryRay = function(self,x,y,x2,y2)
 	return rayCallback(self,x,y,x2,y2)
 end
 

@@ -358,7 +358,7 @@ s.query = function (self,obj)
 	return t
 end
 
-s.areaQuery = function(self,x0,y0,x1,y1,enclosed)
+s.queryArea = function(self,x0,y0,x1,y1,enclosed)
 	-- Obj needs x score > 1 and y score > 1 for overlap
 	-- Obj needs x score > 3 and y score > 3 for containment
 	local minScore  = enclosed and 3 or 0
@@ -393,7 +393,7 @@ s.areaQuery = function(self,x0,y0,x1,y1,enclosed)
 	return xset
 end
 
-s.pointQuery = function(self,x,y)
+s.queryPoint = function(self,x,y)
 	local xset,yset = {},{}
 	local xt,yt = self.xintervals,self.yintervals
 	local _,xi  = binsearch(xt,x)
@@ -406,7 +406,7 @@ s.pointQuery = function(self,x,y)
 	return yset
 end
 
-s.rayQuery = function(self,x,y,x2,y2)
+s.queryRay = function(self,x,y,x2,y2)
 	return self:iterRay(x,y,x2,y2)()
 end
 

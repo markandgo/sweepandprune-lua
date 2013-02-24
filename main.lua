@@ -36,9 +36,9 @@ function love.update(dt)
 	sapA:update()
 	---------------------------------------------------------------------------------------
 	-- queries
-	a1      = sapA:areaQuery(b3.x,b3.y,b3.x+b3.w,b3.y+b3.h,true) -- enclosed boxes only
-	a2      = sapA:areaQuery(b4.x,b4.y,b4.x+b4.w,b4.y+b4.h)
-	p       = sapA:pointQuery(400,400)
+	a1      = sapA:queryArea(b3.x,b3.y,b3.x+b3.w,b3.y+b3.h,true) -- enclosed boxes only
+	a2      = sapA:queryArea(b4.x,b4.y,b4.x+b4.w,b4.y+b4.h)
+	p       = sapA:queryPoint(400,400)
 	if next(sapA:query(b1)) then b1.color = red else b1.color = white end
 	if next(sapA:query(b2)) then b2.color = red else b2.color = white end
 	---------------------------------------------------------------------------------------
@@ -57,7 +57,7 @@ function love.update(dt)
 	local dx,dy = line[3]-x,line[4]-y
 	local t
 	rx,ry = nil
-	rhit,t = sapA:rayQuery(unpack(line))
+	rhit,t = sapA:queryRay(unpack(line))
 	if rhit then rx,ry = x+t*dx,y+t*dy end
 end
 
