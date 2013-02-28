@@ -27,7 +27,6 @@ function love.load()
 	b2.color = white
 	sapA:add(b1,b1.x,b1.y,b1.x+b1.w,b1.y+b1.h)
 	sapA:add(b2,b2.x,b2.y,b2.x+b2.w,b2.y+b2.h)
-	hits    = {}
 end
 
 function love.update(dt)
@@ -43,9 +42,9 @@ function love.update(dt)
 	if next(sapA:query(b2)) then b2.color = red else b2.color = white end
 	---------------------------------------------------------------------------------------
 	-- collect hits for ray iterator
-	hits    = {}
 	r2hit   = nil
 	local i = 1
+	hits    = {}
 	for obj,t in sapA:iterRay(unpack(line2)) do
 		local x,y   = line2[1],line2[2]
 		local dx,dy = line2[3]-x,line2[4]-y
@@ -110,7 +109,7 @@ function love.draw()
 	---------------------------------------------------------------------------------------
 	-- print boxes hit by ray iterator
 	for i,t in ipairs(hits) do
-		if t[2] and t[3] then love.graphics.print('hit:' .. i,t[2],t[3]) end
+		love.graphics.print('hit:' .. i,t[2],t[3])
 	end
 	---------------------------------------------------------------------------------------
 	-- draw one shot ray
