@@ -46,17 +46,17 @@ end
 ---
 Query an area and return a list of all AABB's overlapping with the area. If `enclosed` is passed as `true`, then return a list of enclosed boxes only.
 
-`list = sapA:areaQuery(x0,y0,x1,y1[,enclosed])`
+`list = sapA:queryArea(x0,y0,x1,y1[,enclosed])`
 
 ---
 Query a point and return a list of all AABB's containing the point.
 
-`list = sapA:pointQuery(x0,y0,x1,y1)`
+`list = sapA:queryPoint(x0,y0,x1,y1)`
 
 ---
 Shoot a ray from point `x0,y0` to `x1,y1` and return the first box that it touches and the time of contact. `t` is between `0` and `1` where `1` is the full length of the ray.
 
-`obj,t = sapA:rayQuery(x0,y0,x1,y1)`
+`obj,t = sapA:queryRay(x0,y0,x1,y1)`
 
 ---
 Return an iterator that returns all boxes and points of contact in its path.
